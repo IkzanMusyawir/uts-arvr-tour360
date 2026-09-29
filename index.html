@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="utf-8">
@@ -73,25 +73,6 @@
 
     /* Sembunyikan UI/modal VR bawaan A-Frame (tidak dipakai) */
     .a-enter-vr, .a-enter-ar, .a-modal, .a-dialog { display: none !important; }
-
-    /* ---------- Panel pengatur posisi objek 3D ---------- */
-    #panelAtur {
-      position: absolute; top: 14px; left: 250px; z-index: 25; width: 240px;
-      padding: 10px 14px; border-radius: 10px; display: none;
-      background: rgba(18,18,28,0.85); color: #eee; font-size: 12px;
-    }
-    #panelAtur .judul { color: #7ec8ff; margin-bottom: 8px; font-weight: bold; }
-    #panelAtur label { display: block; margin-bottom: 8px; }
-    #panelAtur input[type=range] { width: 100%; margin-top: 2px; }
-    #panelAtur .kode {
-      background: #0b0f18; padding: 6px 8px; border-radius: 6px;
-      font-family: monospace; font-size: 11px; color: #9fe0a0; margin: 8px 0;
-      word-break: break-all;
-    }
-    #panelAtur button {
-      cursor: pointer; border: 0; border-radius: 16px; padding: 6px 12px;
-      background: #2a6fb0; color: #fff; font-size: 12px;
-    }
   </style>
 </head>
 
@@ -123,34 +104,6 @@
 
   <!-- Notifikasi batas tur (akhir / awal) -->
   <div id="notif"></div>
-
-  <!-- ============ PANEL PENGATUR POSISI OBJEK 3D (sementara) ============ -->
-  <div id="panelAtur">
-    <div class="judul">Atur Posisi Objek 3D</div>
-    <label>Kiri / Kanan (X): <span id="vX">0.2</span>
-      <input type="range" id="sX" min="-6" max="6" step="0.05" value="0.2">
-    </label>
-    <label>Naik / Turun (Y): <span id="vY">0.58</span>
-      <input type="range" id="sY" min="-1" max="3" step="0.05" value="0.58">
-    </label>
-    <label>Jarak (Z): <span id="vZ">-3.2</span>
-      <input type="range" id="sZ" min="-10" max="0" step="0.05" value="-3.2">
-    </label>
-    <label>Ukuran: <span id="vS">0.07</span>
-      <input type="range" id="sS" min="0.01" max="0.3" step="0.005" value="0.07">
-    </label>
-    <label>Putar X (miring depan-belakang): <span id="vRX">0</span>
-      <input type="range" id="sRX" min="-180" max="180" step="1" value="0">
-    </label>
-    <label>Putar Y (hadap kiri-kanan): <span id="vRY">0</span>
-      <input type="range" id="sRY" min="-180" max="180" step="1" value="0">
-    </label>
-    <label>Putar Z (miring samping): <span id="vRZ">0</span>
-      <input type="range" id="sRZ" min="-180" max="180" step="1" value="0">
-    </label>
-    <div class="kode">pos: [<span id="oX">0.2</span>, <span id="oY">0.58</span>, <span id="oZ">-3.2</span>], rot: [<span id="oRX">0</span>, <span id="oRY">0</span>, <span id="oRZ">0</span>], scale: <span id="oS">0.07</span></div>
-    <button id="salin">Salin angka</button>
-  </div>
 
   <!-- ============ PANGGUNG A-FRAME ============ -->
   <a-scene renderer="antialias: true; colorManagement: true"
@@ -219,7 +172,7 @@
         Saat "model" masih null, tidak ada apa-apa yang ditampilkan.
      ===================================================================== */
   const OBJEK3D = [
-    { model: "assets/vendine_mechine.glb", titik: 2, pos: [0.2, 0.58, -3.2], rot: [0, 0, 0], scale: 0.07 }, // muncul di Titik 3 (index 2)
+    { model: "assets/vendine_mechine.glb", titik: 2, pos: [0.35, -1.00, -5.60], rot: [-91, -180, 64], scale: 0.09 }, // muncul di Titik 3 (index 2)
     { model: null, titik:  5, pos: [1.5, 1.0, -2.0], rot: [0, -30, 0], scale: 1 }, // muncul di Titik 6
     { model: null, titik:  8, pos: [-1.5, 1.0, -2.5], rot: [0, 30, 0], scale: 1 }, // muncul di Titik 9
     { model: null, titik: 11, pos: [0, 1.0, -2.5], rot: [0, 0, 0],   scale: 1 }, // muncul di Titik 12
@@ -281,9 +234,6 @@
       if (o.titik === titikIndexAktif) e.setAttribute('visible', true);
       else e.setAttribute('visible', false);
     });
-    // panel pengatur posisi: hanya muncul di titik tempat ada objek 3D
-    const panel = document.getElementById('panelAtur');
-    if (panel) panel.style.display = OBJEK3D.some(o => o.model && o.titik === titikIndexAktif) ? 'block' : 'none';
   }
 
   // ---- Notifikasi batas tur ----
@@ -446,65 +396,6 @@
   };
   if (pertama.complete) mulai();
   else pertama.addEventListener('load', mulai, { once: true });
-
-  /* =====================================================================
-     PANEL PENGATUR POSISI OBJEK 3D (alat bantu sementara)
-     Geser slider sampai objek 3D pas di tempat yang diinginkan, lalu
-     salin angka di kotak hijau -> tempel ke array OBJEK3D di atas.
-     Hapus panel ini kalau posisi sudah final (cari "panelAtur").
-     ===================================================================== */
-  (function () {
-    const sX = document.getElementById('sX'), sY = document.getElementById('sY'),
-          sZ = document.getElementById('sZ'), sS = document.getElementById('sS'),
-          sRX = document.getElementById('sRX'), sRY = document.getElementById('sRY'),
-          sRZ = document.getElementById('sRZ');
-    const oX = document.getElementById('oX'), oY = document.getElementById('oY'),
-          oZ = document.getElementById('oZ'), oS = document.getElementById('oS'),
-          oRX = document.getElementById('oRX'), oRY = document.getElementById('oRY'),
-          oRZ = document.getElementById('oRZ');
-    const vX = document.getElementById('vX'), vY = document.getElementById('vY'),
-          vZ = document.getElementById('vZ'), vS = document.getElementById('vS'),
-          vRX = document.getElementById('vRX'), vRY = document.getElementById('vRY'),
-          vRZ = document.getElementById('vRZ');
-
-    // terapkan ke objek 3D yang sedang tampil (slot dengan model)
-    function terapkan() {
-      const idx = OBJEK3D.findIndex(o => o.model && o.titik === aktif);
-      if (idx < 0) return;
-      const el = document.getElementById('obj' + idx);
-      if (!el) return;
-      const x = +sX.value, y = +sY.value, z = +sZ.value, s = +sS.value;
-      const rx = +sRX.value, ry = +sRY.value, rz = +sRZ.value;
-      el.setAttribute('position', { x, y, z });
-      el.setAttribute('rotation', { x: rx, y: ry, z: rz });
-      el.setAttribute('scale', s + ' ' + s + ' ' + s);
-      // tampilkan angka
-      vX.textContent = x.toFixed(2); vY.textContent = y.toFixed(2);
-      vZ.textContent = z.toFixed(2); vS.textContent = s.toFixed(3);
-      vRX.textContent = rx; vRY.textContent = ry; vRZ.textContent = rz;
-      oX.textContent = x.toFixed(2); oY.textContent = y.toFixed(2);
-      oZ.textContent = z.toFixed(2); oS.textContent = s.toFixed(3);
-      oRX.textContent = rx; oRY.textContent = ry; oRZ.textContent = rz;
-    }
-    [sX, sY, sZ, sS, sRX, sRY, sRZ].forEach(sl => sl.addEventListener('input', terapkan));
-
-    document.getElementById('salin').addEventListener('click', () => {
-      const teks = `pos: [${sX.value}, ${sY.value}, ${sZ.value}], rot: [${sRX.value}, ${sRY.value}, ${sRZ.value}], scale: ${sS.value}`;
-      navigator.clipboard && navigator.clipboard.writeText(teks);
-      const btn = document.getElementById('salin');
-      btn.textContent = 'Tersalin!';
-      setTimeout(() => btn.textContent = 'Salin angka', 1200);
-    });
-
-    // sinkronkan slider dengan posisi/rotasi awal OBJEK3D
-    const awal = OBJEK3D.find(o => o.model);
-    if (awal) {
-      sX.value = awal.pos[0]; sY.value = awal.pos[1]; sZ.value = awal.pos[2];
-      sS.value = awal.scale;
-      sRX.value = awal.rot[0]; sRY.value = awal.rot[1]; sRZ.value = awal.rot[2];
-      terapkan();
-    }
-  })();
 
   /* ---- Self-check sederhana ---- */
   console.assert(TITIK.length === 15, 'TITIK harus 15');
