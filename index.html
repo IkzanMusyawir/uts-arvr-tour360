@@ -262,9 +262,6 @@
     /* Sembunyikan UI/modal VR bawaan A-Frame (tidak dipakai) */
     .a-enter-vr, .a-enter-ar, .a-modal, .a-dialog { display: none !important; }
 
-    /* Kanvas 3D: siap untuk efek warp (transform di compositor GPU) */
-    a-scene canvas { will-change: transform; transform-origin: 50% 55%; }
-
     /* ================= RESPONSIF ================= */
     @media (max-width: 560px) {
       #minimap { width: 176px; padding: 10px 11px 8px; top: 12px; left: 12px; }
@@ -369,26 +366,23 @@
   <!-- Notifikasi batas tur (akhir / awal) -->
   <div id="notif" role="status" aria-live="polite"></div>
 
-  <!-- ============ KOMPONEN TRANSISI STREET VIEW (kustom) ============ -->
+  <!-- ============ KOMPONEN TRANSISI PANORAMA (kustom) ============ -->
   <script>
   /* =====================================================================
      AFRAME.registerComponent('streetview-transition')
-     Efek perpindahan ala Google Street View:
-       1) DOLLY IN  : kamera maju mulus ke depan (default 380ms)
-       2) CROSSFADE : panorama lama fade-out & panorama baru fade-in simultan
-       3) RESET     : kamera kembali ke (0, 1.6, 0) setelah selesai
-     Dipasang di <a-scene>. Error-safe: kalau sky tidak ditemukan, dilewati.
+     Crossfade lembut antar panorama:
+       - panorama BARU muncul perlahan (fade-in)
+       - panorama LAMA memudar keluar (fade-out)
+       - kedua gambar bertumpuk/menyatu di tengah, tanpa jedug
+     Dipasang di <a-scene>. Aman: kalau sky tidak ada, komponen lewat saja.
      ===================================================================== */
   AFRAME.registerComponent('streetview-transition', {
     schema: {
-      dur:   { default: 420 },   // durasi tween (ms)
-      dolly: { default: 1.4 },   // jarak kamera maju (m)
-      warp:  { default: 0.35 },  // kekuatan warp masuk (0 = tanpa warp)
-      ease:  { default: 'easeInOutSine' }
+      dur: { default: 420 }      // durasi crossfade (ms)
     },
 
     init: function () {
-      this.rig  = document.querySelector('#rig');
+      // pastikan ada 2 sky + 1 rig di scene (kalau tidak, komponen lewati saja)
       this.skyA = document.querySelector('#skyA');
       this.skyB = document.querySelector('#skyB');
       this.depan = this.skyA;              // lapisan yang sedang tampil
@@ -396,20 +390,13 @@
       this.sibuk = false;
     },
 
-    /* kanvas A-Frame (dibuat A-Frame setelah init) -> ambil saat dibutuhkan */
-    _canvas: function () {
-      if (!this._cv) this._cv = document.querySelector('a-scene canvas');
-      return this._cv;
-    },
-
-    /* Pindahkan ke panorama index `idx` dengan efek Street View.
+    /* Pindahkan ke panorama index `idx` dengan crossfade lembut.
        onSelesai = callback opsional (dipanggil setelah animasi tuntas). */
     ke: function (idx, onSelesai) {
-      if (this.sibuk || !this.rig || !this.skyA) return false;
+      if (this.sibuk || !this.skyA) return false;
       this.sibuk = true;
 
       const d = this.data;
-      const rig = this.rig;
       const depan = this.depan;
       const belakang = this.belakang;
 
@@ -418,58 +405,44 @@
       belakang.setAttribute('opacity', 0);
 
       /* -----------------------------------------------------------------
-         WARP "MASUK KE TITIK BERIKUTNYA" (ala Google):
-         1) KANVAS di-warp: scale membesar + digeser sedikit ke arah tujuan
-            -> gambar terasa melesat MENDEKATI kita (menukik masuk).
-            Dikerjakan di CSS transform kanvas (compositor GPU, mulus).
-         2) CROSS-DISSOLVE tanpa jeda gelap (fade-in depan selesai dulu).
-         3) Kamera dolly maju sebagai pelengkap rasa bergerak.
-         Puncak warp ada di tengah transisi, lalu kembali normal.
+         CROSSFADE "MENYATU" (dua panorama bertumpuk, yang lama memudar):
+         - Panorama BARU muncul perlahan (0 -> 1) sepanjang durasi.
+         - Panorama LAMA baru mulai memudar di TENGAH, selesai di akhir.
+         Hasil: di separuh awal kedua gambar MENYATU (tumpang-tindih),
+         lalu gambar lama memudar keluar. Tanpa jedug.
          ----------------------------------------------------------------- */
       const dur = d.dur;
-      const warpKuat = d.warp;          // seberapa kuat scale (mis. 0.35)
-      const cv = this._canvas();
       let t0 = null;
-      let raf = null;
 
-      // pembagi: fade-in selesai di 0.6, fade-out mulai di 0.4
-      const fadeIn  = p => Math.min(p / 0.6, 1);
-      const fadeOut = p => 1 - Math.min(Math.max((p - 0.4) / 0.6, 0), 1);
-      const easeIO  = t => -(Math.cos(Math.PI * t) - 1) / 2;
+      // fade-in pakai easeOut (cepat muncul di awal), fade-out mulai di tengah
+      const fadeIn  = p => 1 - Math.pow(1 - p, 2);            // 0 -> 1, easeOutQuad
+      const fadeOut = p => 1 - Math.min(Math.max(p, 0), 1);   // 1 -> 0, mulai langsung
 
       const langkah = (ts) => {
         if (t0 === null) t0 = ts;
         const p = Math.min((ts - t0) / dur, 1);
 
         belakang.setAttribute('opacity', fadeIn(p));
-        depan.setAttribute('opacity',    fadeOut(p));
-        rig.setAttribute('position', { x: 0, y: 1.6, z: -d.dolly * easeIO(p) });
+        depan.setAttribute('opacity',   fadeOut(p));
 
-        // WARP kanvas: membesar ke puncak di tengah, lalu kembali normal.
-        // pakai kurva 0->1->0 supaya kembali rata di akhir (tanpa lompatan).
-        if (cv) {
-          const w = Math.sin(p * Math.PI);          // 0 -> 1 -> 0
-          const skala = 1 + warpKuat * w;
-          // arah geser: ke atas sedikit (rasa menukik) + skala radial
-          cv.style.transform = `scale(${skala.toFixed(4)}) translateY(${(-2 * w).toFixed(2)}%)`;
-          cv.style.transformOrigin = '50% 55%';
-        }
+        if (p < 1) { requestAnimationFrame(langkah); return; }
 
-        if (p < 1) { raf = requestAnimationFrame(langkah); return; }
-
-        // --- SELESAI: kunci nilai akhir, tukar peran lapisan, reset ---
-        depan.setAttribute('opacity', 0);
-        depan.setAttribute('src', '');        // lepas tekstur lama
+        // --- SELESAI: kunci nilai akhir, tukar peran lapisan. ---
         belakang.setAttribute('opacity', 1);
-        rig.setAttribute('position', '0 1.6 0');
-        if (cv) cv.style.transform = '';      // kanvas kembali normal
+        depan.setAttribute('opacity', 0);
 
         this.depan = belakang;
         this.belakang = depan;
         this.sibuk = false;
+
+        // buang tekstur lama SETELAH frame berikutnya (hindari hitch saat transisi),
+        // jadi tidak ada "jedug" di akhir.
+        const lama = depan;
+        requestAnimationFrame(() => requestAnimationFrame(() => lama.setAttribute('src', '')));
+
         if (typeof onSelesai === 'function') onSelesai();
       };
-      raf = requestAnimationFrame(langkah);
+      requestAnimationFrame(langkah);
       return true;
     },
 
@@ -623,7 +596,7 @@
   }
 
   // ---- Ganti titik ----
-  // Logika transisi (dolly + crossfade + reset) ada di komponen
+  // Logika crossfade ada di komponen
   // "streetview-transition". Di sini cuma atur state aplikasi.
   const transisi = () => document.querySelector('a-scene').components['streetview-transition'];
 
@@ -646,7 +619,7 @@
     label.innerHTML = TITIK[baru].label + ' / ' + TITIK.length
       + '<small>' + TITIK[baru].lantai + '</small>';
 
-    // jalan! transisi dolly + crossfade dikerjakan komponen
+    // jalan! crossfade dikerjakan komponen
     komp.ke(baru, () => {
       label.classList.remove('pindah');
       aktif = baru;
