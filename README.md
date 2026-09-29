@@ -1,8 +1,28 @@
-# Tur 360° + Objek 3D (A-Frame)
+# Tur 360° Nipah Park Mall Makassar (A-Frame)
 
-Tur panorama 360° dengan **15 titik** lokasi, **mini map**, dan **3 objek 3D** yang
-dipasang di titik berbeda. Dibuat dengan [A-Frame](https://aframe.io/) — berjalan
-langsung di browser.
+Tur panorama 360° interaktif **Nipah Park Mall Makassar**, dari **Lantai 5** turun ke
+**Lantai 4**, lalu berjalan menyusuri titik 5–15. Ada **mini map 2 lantai**, navigasi
+halus ala Google Maps, dan **4 objek 3D**. Dibuat dengan [A-Frame](https://aframe.io/).
+
+## Fitur
+
+- **15 titik panorama** — mulai Lantai 5 (titik 1–4) lalu Lantai 4 (titik 5–15)
+- **Modal sambutan** — penjelasan tur + statistik + panduan kontrol
+- **Mini map 2 lantai** — rute bertingkat, tag lantai otomatis, titik yang sudah
+  dikunjungi berubah warna, titik aktif berdenyut
+- **Fly-through transition** — zoom-in cepat + crossfade ala Google Maps
+- **Device rotation tracking** — di HP, putar perangkat untuk melihat sekeliling
+- **Keyboard support** — panah kiri/kanan, Enter/Space di node map, Esc tutup modal
+- **4 objek 3D**: Samy (Titik 1), vending machine (Titik 5), Ainil (Titik 6), anggun (Titik 13)
+- **Boundary guard** — Titik 15 tidak berputar balik ke Titik 1 (muncul notifikasi)
+- **Aksesibilitas** — aria-live, fokus keyboard, `prefers-reduced-motion`, kontras teks
+
+## Desain
+
+- **Style:** Immersive dark + spatial glass (backdrop blur), cocok untuk tur VR
+- **Warna:** latar deep navy `#0A0E27`, aksen sky `#38BDF8`, sorot gold `#F5B301`
+- **Font:** Cinzel (judul) + Josefin Sans (isi)
+- **Breakpoint:** 375px, 560px, 768px, 1024px, 1440px
 
 ## Cara menjalankan (untuk teman yang baru clone)
 
@@ -18,7 +38,7 @@ cd uts-arvr-tour360
 
 ### 2. Jalankan lewat web server (pilih salah satu)
 
-**Cara A — Python (paling gampang, sudah terpasang di hampir semua komputer):**
+**Cara A — Python (paling gampang):**
 ```bash
 python -m http.server 8000
 ```
@@ -29,21 +49,12 @@ Lalu buka **http://localhost:8000** di browser (Chrome/Edge).
 - Contoh: `C:\laragon\www\uts-arvr`
 - Buka **http://localhost/uts-arvr** atau **http://uts-arvr.test** (Laragon).
 
-**Cara C — VS Code (kalau pakai ekstensi "Live Server"):**
+**Cara C — VS Code (ekstensi "Live Server"):**
 - Klik kanan `index.html` → **Open with Live Server**.
 
 ### 3. Selesai
 
-Klik titik di mini map / tombol Berikutnya untuk berpindah lokasi.
-
-## Fitur
-
-- **15 titik panorama** — navigasi tombol Berikutnya/Sebelumnya + klik mini map
-- **Mini map** (kiri atas) — lompat ke lokasi mana pun
-- **Fly-through transition** — zoom-in cepat + crossfade ala Google Maps
-- **Device rotation tracking** — di HP, putar perangkat untuk melihat sekeliling
-- **3 objek 3D**: vending machine (Titik 3), Ainil (Titik 6), anggun (Titik 9)
-- **Boundary guard** — Titik 15 tidak berputar balik ke Titik 1 (muncul notifikasi)
+Modal sambutan muncul → klik **Mulai Tur** → jelajahi lewat tombol / mini map.
 
 ## Struktur
 

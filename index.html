@@ -3,108 +3,368 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>UTS AR/VR &mdash; Tur 360&deg; 15 Titik</title>
+  <meta name="theme-color" content="#0A0E27">
+  <meta name="description" content="Tur virtual 360° Nipah Park Mall Makassar - jelajahi Lantai 5 dan Lantai 4 dalam panorama interaktif.">
+  <title>Tur 360&deg; Nipah Park Mall Makassar</title>
 
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
 
+  <!-- Font: Cinzel (heading) + Josefin Sans (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Josefin+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #111;
-      font-family: Arial, Helvetica, sans-serif; }
-
-    /* ---------- Label titik (kanan atas) ---------- */
-    #info {
-      position: absolute; top: 14px; right: 14px; z-index: 20;
-      padding: 8px 14px; border-radius: 10px;
-      background: rgba(18,18,28,0.72); color: #eee; font-size: 12px; line-height: 1.5;
+    :root {
+      --bg-deep: #0A0E27;
+      --bg-panel: rgba(12, 16, 34, 0.72);
+      --bg-panel-solid: #0F1430;
+      --glass-border: rgba(126, 200, 255, 0.18);
+      --text: #E8EEF7;
+      --text-muted: #9FB2CC;
+      --accent: #38BDF8;
+      --accent-strong: #0EA5E9;
+      --gold: #F5B301;
+      --z-panel: 20;
+      --z-nav: 25;
+      --z-modal: 60;
+      --z-loading: 80;
     }
-    #info b { color: #7ec8ff; }
 
-    /* ---------- Mini map (KIRI ATAS) ---------- */
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0; padding: 0; height: 100%; overflow: hidden;
+      background: var(--bg-deep);
+      font-family: 'Josefin Sans', system-ui, sans-serif;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font-family: inherit; }
+    button:focus-visible, .node:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    /* Utility: tombol ikon */
+    .ikon { width: 20px; height: 20px; display: block; stroke: currentColor;
+            fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ================= MINI MAP (kiri atas) ================= */
     #minimap {
-      position: absolute; top: 14px; left: 14px; z-index: 20; width: 210px;
-      padding: 8px; border-radius: 10px;
-      background: rgba(18,18,28,0.72); color: #eee; user-select: none;
+      position: absolute; top: 16px; left: 16px; z-index: var(--z-panel); width: 244px;
+      padding: 12px 14px 10px; border-radius: 16px;
+      background: var(--bg-panel);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      user-select: none;
     }
-    #minimap .judul { font-size: 12px; margin-bottom: 6px; color: #7ec8ff; }
-    #minimap svg { display: block; width: 100%; height: auto; }
-    #minimap circle { cursor: pointer; }
-    #minimap .node      { fill: #4a5a72; stroke: #cde3ff; stroke-width: 1; }
-    #minimap .node.aktif{ fill: #ffb400; stroke: #fff; }
-    #minimap text       { fill: #dfe9ff; font-size: 6px; text-anchor: middle;
-                          pointer-events: none; }
+    #minimap .kepala {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    #minimap .judul {
+      font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600;
+      letter-spacing: .02em; color: var(--text);
+    }
+    #minimap .lantai-tag {
+      font-size: 10px; font-weight: 600; letter-spacing: .04em;
+      padding: 2px 8px; border-radius: 20px;
+      background: rgba(56, 189, 248, 0.15); color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    #mapSvg { display: block; width: 100%; height: auto; }
 
-    /* ---------- Bar navigasi bawah ---------- */
+    #mapSvg .jalur { fill: none; stroke: rgba(159, 178, 204, 0.35);
+                     stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    #mapSvg .jalur-sedang { stroke-dasharray: 3 3; }
+    #mapSvg .lantai-label {
+      fill: var(--text-muted); font-family: 'Josefin Sans', sans-serif;
+      font-size: 7px; font-weight: 600; letter-spacing: .06em;
+    }
+    #mapSvg .node { fill: #2C3A56; stroke: #7E9BC4; stroke-width: 1.2;
+                     cursor: pointer; transition: fill .2s ease, r .2s ease; }
+    #mapSvg .node:hover { fill: #3E5580; }
+    #mapSvg .node.dikunjungi { fill: #1E6F8C; stroke: #6EC8E8; }
+    #mapSvg .node.aktif { fill: var(--gold); stroke: #fff; stroke-width: 1.8; }
+    #mapSvg .denyut { fill: none; stroke: var(--gold); stroke-width: 1.5; opacity: .8;
+                      pointer-events: none; animation: denyut 2s ease-out infinite; }
+    @keyframes denyut {
+      0%   { r: 5;  opacity: .8; }
+      100% { r: 14; opacity: 0; }
+    }
+    #mapSvg text.nomor { fill: #EAF2FF; font-size: 6.5px; font-weight: 600;
+                         text-anchor: middle; pointer-events: none;
+                         font-family: 'Josefin Sans', sans-serif; }
+
+    /* ================= PETUNJUK (kanan atas) ================= */
+    #info {
+      position: absolute; top: 16px; right: 16px; z-index: var(--z-panel);
+      padding: 10px 14px; border-radius: 14px; max-width: 230px;
+      background: var(--bg-panel);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      font-size: 12px; line-height: 1.55; color: var(--text-muted);
+    }
+    #info .baris { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    #info .baris svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--accent); }
+    #info .baris b { color: var(--text); font-weight: 600; }
+
+    /* ================= NAVIGASI BAWAH ================= */
     #nav {
-      position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-      z-index: 20; display: flex; gap: 14px; align-items: center;
-      padding: 8px 16px; border-radius: 30px; background: rgba(18,18,28,0.75); color: #eee;
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      z-index: var(--z-nav); display: flex; gap: 12px; align-items: center;
+      padding: 8px; border-radius: 40px;
+      background: var(--bg-panel);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
     }
     #nav button {
-      cursor: pointer; border: 0; border-radius: 20px; padding: 8px 16px;
-      background: #2a6fb0; color: #fff; font-size: 13px;
+      display: inline-flex; align-items: center; gap: 8px;
+      min-height: 44px; min-width: 44px; padding: 0 18px;
+      cursor: pointer; border: 0; border-radius: 30px;
+      background: rgba(56, 189, 248, 0.12); color: var(--text);
+      font-size: 13px; font-weight: 500;
+      transition: background .2s ease, color .2s ease, opacity .2s ease;
     }
-    #nav button:hover { background: #3a86cf; }
-    #nav button.ujung { opacity: .45; }
-    #nav #label { font-size: 13px; min-width: 90px; text-align: center; }
-
-    /* ---------- Loading ---------- */
-    #loading {
-      position: absolute; inset: 0; z-index: 30; display: flex;
-      align-items: center; justify-content: center; color: #cde3ff;
-      background: #111; font-size: 15px;
+    #nav button:hover { background: var(--accent-strong); color: #fff; }
+    #nav button:active { transform: translateY(1px); }
+    #nav button.ujung { opacity: .38; }
+    #nav button.ujung:hover { background: rgba(56, 189, 248, 0.12); color: var(--text); }
+    #nav #label {
+      font-size: 13px; font-weight: 600; min-width: 112px; text-align: center;
+      color: var(--text); transition: opacity .2s ease;
     }
-
-    /* ---------- Transisi halus (crossfade ala Google Maps) ---------- */
-    #nav #label { transition: opacity .2s ease; }
     #nav #label.pindah { opacity: .35; }
+    #nav #label small { display: block; font-size: 10px; font-weight: 400;
+                        color: var(--text-muted); letter-spacing: .03em; }
 
-    /* ---------- Notifikasi batas tur ---------- */
+    /* ================= LOADING ================= */
+    #loading {
+      position: absolute; inset: 0; z-index: var(--z-loading);
+      display: flex; flex-direction: column; gap: 16px;
+      align-items: center; justify-content: center;
+      color: var(--text-muted); background: var(--bg-deep); font-size: 14px;
+      letter-spacing: .04em;
+    }
+    #loading .spinner {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 3px solid rgba(56, 189, 248, 0.2);
+      border-top-color: var(--accent);
+      animation: putar .8s linear infinite;
+    }
+    @keyframes putar { to { transform: rotate(360deg); } }
+
+    /* ================= NOTIFIKASI ================= */
     #notif {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(.9);
-      z-index: 40; max-width: 340px; padding: 18px 26px; border-radius: 14px;
-      background: rgba(20, 26, 40, 0.92); color: #fff; text-align: center;
-      font-size: 15px; line-height: 1.5; border: 1px solid rgba(126,200,255,.35);
-      box-shadow: 0 10px 40px rgba(0,0,0,.5);
-      opacity: 0; pointer-events: none; transition: opacity .3s ease, transform .3s ease;
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(.94);
+      z-index: 45; max-width: 340px; padding: 20px 26px; border-radius: 16px;
+      background: rgba(12, 16, 34, 0.95); color: var(--text); text-align: center;
+      font-size: 14px; line-height: 1.55; border: 1px solid var(--glass-border);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      opacity: 0; pointer-events: none;
+      transition: opacity .3s ease, transform .3s ease;
     }
     #notif.tampil { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    #notif b { color: #ffb400; display: block; font-size: 17px; margin-bottom: 6px; }
+    #notif b {
+      font-family: 'Cinzel', serif; color: var(--gold);
+      display: block; font-size: 17px; margin-bottom: 8px;
+    }
+
+    /* ================= MODAL SAMBUTAN ================= */
+    #sambutan {
+      position: fixed; inset: 0; z-index: var(--z-modal);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      background: radial-gradient(circle at 50% 40%, rgba(10,14,39,.82), rgba(6,8,20,.96));
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      transition: opacity .45s ease, visibility .45s ease;
+    }
+    #sambutan.tutup { opacity: 0; visibility: hidden; pointer-events: none; }
+    #sambutan .kartu {
+      width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto;
+      padding: 34px 34px 28px; border-radius: 22px; text-align: center;
+      background: linear-gradient(160deg, rgba(22, 28, 54, 0.96), rgba(12, 16, 34, 0.98));
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.65);
+    }
+    #sambutan .lencana {
+      display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--accent);
+      padding: 5px 14px; border-radius: 20px; margin-bottom: 18px;
+      background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.28);
+    }
+    #sambutan h1 {
+      font-family: 'Cinzel', serif; font-size: clamp(22px, 4.5vw, 30px);
+      font-weight: 600; line-height: 1.25; margin: 0 0 8px; color: #fff;
+      letter-spacing: .01em;
+    }
+    #sambutan .lokasi {
+      font-size: 14px; color: var(--text-muted); margin: 0 0 22px;
+      letter-spacing: .03em;
+    }
+    #sambutan .deskripsi {
+      font-size: 14px; line-height: 1.7; color: #C7D4E8;
+      margin: 0 0 24px; text-align: left;
+    }
+    #sambutan .deskripsi p { margin: 0 0 10px; }
+    #sambutan .deskripsi .tebal { color: var(--text); font-weight: 600; }
+    #sambutan .statistik {
+      display: flex; justify-content: center; gap: 10px; margin: 0 0 26px;
+      flex-wrap: wrap;
+    }
+    #sambutan .stat {
+      flex: 1 1 0; min-width: 92px; padding: 12px 8px; border-radius: 14px;
+      background: rgba(56, 189, 248, 0.07);
+      border: 1px solid rgba(56, 189, 248, 0.16);
+    }
+    #sambutan .stat .angka {
+      display: block; font-family: 'Cinzel', serif; font-size: 22px;
+      font-weight: 700; color: var(--gold); line-height: 1;
+    }
+    #sambutan .stat .teks {
+      display: block; font-size: 11px; color: var(--text-muted);
+      margin-top: 6px; letter-spacing: .03em;
+    }
+    #sambutan .petunjuk-kecil {
+      font-size: 12px; color: var(--text-muted); line-height: 1.7;
+      text-align: left; margin: 0 0 24px; padding: 14px 16px; border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    #sambutan .petunjuk-kecil .baris {
+      display: flex; align-items: center; gap: 10px; margin: 6px 0;
+    }
+    #sambutan .petunjuk-kecil svg { width: 16px; height: 16px; flex: 0 0 auto;
+      color: var(--accent); }
+    #sambutan .mulai {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; min-height: 52px; cursor: pointer;
+      border: 0; border-radius: 30px; font-size: 15px; font-weight: 600;
+      letter-spacing: .04em; color: #04121E;
+      background: linear-gradient(135deg, #7ED0F5, var(--accent-strong));
+      box-shadow: 0 10px 26px rgba(14, 165, 233, 0.4);
+      transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+    }
+    #sambutan .mulai:hover { transform: translateY(-2px);
+      box-shadow: 0 14px 32px rgba(14, 165, 233, 0.55); filter: brightness(1.05); }
+    #sambutan .mulai:active { transform: translateY(0); }
 
     /* Sembunyikan UI/modal VR bawaan A-Frame (tidak dipakai) */
     .a-enter-vr, .a-enter-ar, .a-modal, .a-dialog { display: none !important; }
 
+    /* ================= RESPONSIF ================= */
+    @media (max-width: 560px) {
+      #minimap { width: 176px; padding: 10px 11px 8px; top: 12px; left: 12px; }
+      #minimap .judul { font-size: 11px; }
+      #info { display: none; }
+      #nav { bottom: 12px; gap: 8px; padding: 6px; width: calc(100% - 24px);
+             max-width: 420px; justify-content: space-between; }
+      #nav button { padding: 0 14px; font-size: 12px; }
+      #nav button span.teks { display: none; }
+      #nav #label { min-width: 76px; font-size: 12px; }
+      #sambutan .kartu { padding: 26px 20px 22px; border-radius: 18px; }
+      #sambutan .deskripsi { font-size: 13px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+      #mapSvg .denyut { display: none; }
+    }
   </style>
 </head>
 
 <body>
 
+  <!-- ============ MODAL SAMBUTAN ============ -->
+  <div id="sambutan" class="tampil" role="dialog" aria-modal="true" aria-labelledby="judulTur">
+    <div class="kartu">
+      <span class="lencana">Tur Virtual 360&deg;</span>
+      <h1 id="judulTur">Nipah Park Mall</h1>
+      <p class="lokasi">Makassar &middot; Lantai 5 &rarr; Lantai 4</p>
+
+      <div class="statistik">
+        <div class="stat"><span class="angka">15</span><span class="teks">Titik</span></div>
+        <div class="stat"><span class="angka">2</span><span class="teks">Lantai</span></div>
+        <div class="stat"><span class="angka">4</span><span class="teks">Objek 3D</span></div>
+      </div>
+
+      <div class="deskripsi">
+        <p>Jelajahi suasana <span class="tebal">Nipah Park Mall Makassar</span> dalam
+           panorama 360&deg; interaktif. Tur dimulai dari <span class="tebal">Lantai 5</span>,
+           lalu turun ke <span class="tebal">Lantai 4</span> dan berjalan menyusuri
+           titik 5 hingga 15.</p>
+      </div>
+
+      <div class="petunjuk-kecil">
+        <div class="baris">
+          <svg viewBox="0 0 24 24"><path d="M12 3v18M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>
+          <span><b>Seret mouse</b> atau swiping &mdash; lihat sekeliling</span>
+        </div>
+        <div class="baris">
+          <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <span><b>Tombol / mini map</b> &mdash; pindah antar titik</span>
+        </div>
+        <div class="baris">
+          <svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+          <span>Di HP, <b>gerakkan perangkat</b> untuk melihat sekeliling</span>
+        </div>
+      </div>
+
+      <button class="mulai" id="tombolMulai">
+        <svg class="ikon" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+        Mulai Tur
+      </button>
+    </div>
+  </div>
+
   <!-- ============ MINI MAP (kiri atas) ============ -->
   <div id="minimap">
-    <div class="judul">Mini Map &mdash; Denah Titik</div>
-    <svg id="mapSvg" viewBox="0 0 200 140" aria-label="Mini map titik tur"></svg>
+    <div class="kepala">
+      <span class="judul">Denah Tur</span>
+      <span class="lantai-tag" id="lantaiTag">Lantai 5</span>
+    </div>
+    <svg id="mapSvg" viewBox="0 0 200 150" role="img" aria-label="Mini map titik tur Nipah Park"></svg>
   </div>
 
   <!-- ============ Petunjuk (kanan atas) ============ -->
   <div id="info">
-    <b>Tur 360&deg;</b> &mdash; UTS AR/VR<br>
-    <b>Seret / swiping</b> : lihat sekeliling<br>
-    <span style="font-size:11px;color:#9fb2cc;">
-      Gerakkan perangkat / seret : putar pandangan
-    </span>
+    <div class="baris">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M5 12h14"/></svg>
+      <span><b>Seret</b> &mdash; lihat sekeliling</span>
+    </div>
+    <div class="baris">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+      <span><b>Klik map</b> &mdash; pindah titik</span>
+    </div>
   </div>
 
   <!-- ============ Navigasi bawah ============ -->
   <div id="nav">
-    <button id="prev">&larr; Sebelumnya</button>
-    <div id="label">Titik 1 / 15</div>
-    <button id="next">Berikutnya &rarr;</button>
+    <button id="prev" aria-label="Titik sebelumnya">
+      <svg class="ikon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      <span class="teks">Sebelumnya</span>
+    </button>
+    <div id="label" aria-live="polite">Titik 1 / 15<small>Lantai 5</small></div>
+    <button id="next" aria-label="Titik berikutnya">
+      <span class="teks">Berikutnya</span>
+      <svg class="ikon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
   </div>
 
-  <div id="loading">Memuat panorama&hellip;</div>
+  <div id="loading"><div class="spinner"></div><span>Menyiapkan panorama&hellip;</span></div>
 
   <!-- Notifikasi batas tur (akhir / awal) -->
-  <div id="notif"></div>
+  <div id="notif" role="status" aria-live="polite"></div>
 
   <!-- ============ PANGGUNG A-FRAME ============ -->
   <a-scene renderer="antialias: true; colorManagement: true"
@@ -133,29 +393,33 @@
 
   </a-scene>
 
+
   <script>
   /* =====================================================================
      1) DAFTAR TITIK 360
         - foto   : path gambar (relatif ke index.html)
-        - pos    : koordinat [x, y] untuk digambar di mini map (satuan bebas)
         - label  : nama titik
+        - lantai : keterangan lantai (untuk mini map & label)
+        - pos    : koordinat [x, y] untuk digambar di mini map (satuan bebas)
      ===================================================================== */
   const TITIK = [
-    { foto: "foto/1.jpg",  label: "Titik 1",  pos: [ 20, 120] },
-    { foto: "foto/2.jpg",  label: "Titik 2",  pos: [ 55, 118] },
-    { foto: "foto/3.jpg",  label: "Titik 3",  pos: [ 90, 122] },
-    { foto: "foto/4.jpg",  label: "Titik 4",  pos: [125, 118] },
-    { foto: "foto/5.jpg",  label: "Titik 5",  pos: [165, 120] },
-    { foto: "foto/6.jpg",  label: "Titik 6",  pos: [160,  85] },
-    { foto: "foto/7.jpg",  label: "Titik 7",  pos: [130,  80] },
-    { foto: "foto/8.jpg",  label: "Titik 8",  pos: [ 95,  84] },
-    { foto: "foto/9.jpg",  label: "Titik 9",  pos: [ 60,  80] },
-    { foto: "foto/10.jpg", label: "Titik 10", pos: [ 25,  82] },
-    { foto: "foto/11.jpg", label: "Titik 11", pos: [ 25,  45] },
-    { foto: "foto/12.jpg", label: "Titik 12", pos: [ 65,  42] },
-    { foto: "foto/13.jpg", label: "Titik 13", pos: [100,  46] },
-    { foto: "foto/14.jpg", label: "Titik 14", pos: [140,  42] },
-    { foto: "foto/15.jpg", label: "Titik 15", pos: [175,  45] }
+    // --- Lantai 5 (titik 1-4) ---
+    { foto: "foto/1.jpg",  label: "Titik 1",  lantai: "Lantai 5", pos: [ 42,  34] },
+    { foto: "foto/2.jpg",  label: "Titik 2",  lantai: "Lantai 5", pos: [ 42,  62] },
+    { foto: "foto/3.jpg",  label: "Titik 3",  lantai: "Lantai 5", pos: [ 42,  90] },
+    { foto: "foto/4.jpg",  label: "Titik 4",  lantai: "Lantai 5", pos: [ 42, 118] },
+    // --- Lantai 4 (titik 5-15) ---
+    { foto: "foto/5.jpg",  label: "Titik 5",  lantai: "Lantai 4", pos: [ 42, 118] },
+    { foto: "foto/6.jpg",  label: "Titik 6",  lantai: "Lantai 4", pos: [ 68, 132] },
+    { foto: "foto/7.jpg",  label: "Titik 7",  lantai: "Lantai 4", pos: [ 96, 132] },
+    { foto: "foto/8.jpg",  label: "Titik 8",  lantai: "Lantai 4", pos: [124, 132] },
+    { foto: "foto/9.jpg",  label: "Titik 9",  lantai: "Lantai 4", pos: [152, 132] },
+    { foto: "foto/10.jpg", label: "Titik 10", lantai: "Lantai 4", pos: [172, 120] },
+    { foto: "foto/11.jpg", label: "Titik 11", lantai: "Lantai 4", pos: [172,  96] },
+    { foto: "foto/12.jpg", label: "Titik 12", lantai: "Lantai 4", pos: [172,  72] },
+    { foto: "foto/13.jpg", label: "Titik 13", lantai: "Lantai 4", pos: [172,  48] },
+    { foto: "foto/14.jpg", label: "Titik 14", lantai: "Lantai 4", pos: [150,  30] },
+    { foto: "foto/15.jpg", label: "Titik 15", lantai: "Lantai 4", pos: [118,  30] }
   ];
 
   /* =====================================================================
@@ -282,7 +546,8 @@
       skyBelakang.setAttribute('src', '#pano' + baru);
 
       label.classList.add('pindah');
-      label.textContent = TITIK[baru].label + ' / ' + TITIK.length;
+      label.innerHTML = TITIK[baru].label + ' / ' + TITIK.length
+        + '<small>' + TITIK[baru].lantai + '</small>';
 
       let t0 = null;
       function langkah(ts) {
@@ -314,6 +579,7 @@
         camera.setAttribute('fov', FOV_AWAL);  // reset lensa (instan, tidak terlihat)
         rig.setAttribute('position', '0 1.6 0');
         aktif = baru;
+        dikunjungi.add(baru);                  // tandai sudah dikunjungi (warna map)
         tampilkanObjekUntuk(aktif);
         gambarMap();
         perbaruiTombol();
@@ -334,31 +600,77 @@
 
   // ---- Mini map ----
   const svg = document.querySelector('#mapSvg');
+  const lantaiTag = document.querySelector('#lantaiTag');
+  const dikunjungi = new Set();          // titik yang sudah pernah dibuka
+
   function gambarMap() {
     svg.innerHTML = '';
-    // garis penghubung antar titik (urutan rute)
-    const jalur = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    jalur.setAttribute('points', TITIK.map(t => t.pos.join(',')).join(' '));
-    jalur.setAttribute('fill', 'none');
-    jalur.setAttribute('stroke', '#4a5a72');
-    jalur.setAttribute('stroke-width', '1');
-    svg.appendChild(jalur);
+    const NS = 'http://www.w3.org/2000/svg';
 
+    // --- garis rute: lantai 5 (1-4) dan lantai 4 (5-15) ---
+    const rute = [
+      [0, 1, 2, 3],                                  // lantai 5: turun lurus
+      [3, 4],                                        // tangga 5 -> 4 (transisi lantai)
+      [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]         // lantai 4: menyusuri lorong
+    ];
+    rute.forEach((grup, gi) => {
+      const poly = document.createElementNS(NS, 'polyline');
+      poly.setAttribute('points', grup.map(i => TITIK[i].pos.join(',')).join(' '));
+      poly.setAttribute('class', 'jalur' + (gi === 1 ? ' jalur-sedang' : ''));
+      svg.appendChild(poly);
+    });
+
+    // --- penanda lantai ---
+    const labelLantai = [
+      { x: 20, y: 26, teks: 'L5' },
+      { x: 20, y: 112, teks: 'L4' }
+    ];
+    labelLantai.forEach(({ x, y, teks }) => {
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y);
+      t.setAttribute('class', 'lantai-label');
+      t.setAttribute('text-anchor', 'start');
+      t.textContent = teks;
+      svg.appendChild(t);
+    });
+
+    // --- node tiap titik ---
     TITIK.forEach((t, i) => {
-      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      const isAktif = (i === aktif);
+
+      if (isAktif) {                                  // cincin denyut di titik aktif
+        const d = document.createElementNS(NS, 'circle');
+        d.setAttribute('cx', t.pos[0]); d.setAttribute('cy', t.pos[1]);
+        d.setAttribute('r', 5); d.setAttribute('class', 'denyut');
+        svg.appendChild(d);
+      }
+
+      const c = document.createElementNS(NS, 'circle');
       c.setAttribute('cx', t.pos[0]);
       c.setAttribute('cy', t.pos[1]);
-      c.setAttribute('r', i === aktif ? 5.5 : 4);
-      c.setAttribute('class', 'node' + (i === aktif ? ' aktif' : ''));
+      c.setAttribute('r', isAktif ? 5.5 : 4);
+      c.setAttribute('class', 'node'
+        + (isAktif ? ' aktif' : '')
+        + (dikunjungi.has(i) && !isAktif ? ' dikunjungi' : ''));
+      c.setAttribute('tabindex', '0');
+      c.setAttribute('role', 'button');
+      c.setAttribute('aria-label', t.label + ' - ' + t.lantai);
       c.addEventListener('click', () => keTitik(i));
+      c.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); keTitik(i); }
+      });
       svg.appendChild(c);
 
-      const tx = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      const tx = document.createElementNS(NS, 'text');
       tx.setAttribute('x', t.pos[0]);
-      tx.setAttribute('y', t.pos[1] - 7);
+      tx.setAttribute('y', t.pos[1] + 2);
+      tx.setAttribute('class', 'nomor');
       tx.textContent = i + 1;
       svg.appendChild(tx);
     });
+
+    // --- update tag lantai ---
+    if (lantaiTag) lantaiTag.textContent = TITIK[aktif].lantai;
   }
 
   // ---- Tombol navigasi ----
@@ -389,14 +701,30 @@
     skyDepan.setAttribute('src', '#pano0');
     skyDepan.setAttribute('opacity', 1);
     skyBelakang.setAttribute('opacity', 0);
-    label.textContent = TITIK[0].label + ' / ' + TITIK.length;
+    label.innerHTML = TITIK[0].label + ' / ' + TITIK.length
+      + '<small>' + TITIK[0].lantai + '</small>';
     tampilkanObjekUntuk(0);
+    dikunjungi.add(0);
     gambarMap();
     perbaruiTombol();
-    loading.style.display = 'none';
+    loading.style.display = 'none';   // panorama siap -> buka modal sambutan
   };
   if (pertama.complete) mulai();
   else pertama.addEventListener('load', mulai, { once: true });
+
+  // ---- Modal sambutan ----
+  const sambutan = document.getElementById('sambutan');
+  const tombolMulai = document.getElementById('tombolMulai');
+  function tutupSambutan() {
+    sambutan.classList.add('tutup');
+    // fokus ke tombol navigasi supaya keyboard user langsung bisa lanjut
+    setTimeout(() => btnNext && btnNext.focus(), 460);
+  }
+  tombolMulai.addEventListener('click', tutupSambutan);
+  sambutan.addEventListener('click', (e) => { if (e.target === sambutan) tutupSambutan(); });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !sambutan.classList.contains('tutup')) tutupSambutan();
+  });
 
   /* ---- Self-check sederhana ---- */
   console.assert(TITIK.length === 15, 'TITIK harus 15');
