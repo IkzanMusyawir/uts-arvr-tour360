@@ -407,20 +407,24 @@
       belakang.setAttribute('opacity', 0);
 
       /* -----------------------------------------------------------------
-         ZOOM + CROSSFADE "MENYATU":
-         - ZOOM    : lensa mengecil tajam (FOV 80 -> zoomKe) = menerobos masuk,
-                     lalu kembali normal DI DALAM durasi (selesai sebelum akhir
-                     supaya tidak ada "jedug" saat transisi usai).
+         ZOOM SEARAH + CROSSFADE "MENYATU":
+         - ZOOM : lensa mengecil SEARAH (FOV 80 -> zoomKe) dan BERHENTI
+                  tepat saat tiba di titik baru. Tidak ada zoom-balik
+                  -> tidak ada efek "mengecil mundur" / jedug setelah tiba.
+                  Pakai easeOut supaya meluncur mendarat, bukan berhenti
+                  mendadak.
          - CROSSFADE: panorama baru muncul (easeOut), panorama lama memudar.
-         Kurva zoom 0->1->0 (naik lalu turun) -> mulus, tanpa patahan.
+         FOV dikembalikan ke normal HANYA di akhir (instan, tak terlihat
+         karena transisi sudah selesai).
          ----------------------------------------------------------------- */
       const dur   = d.dur;
-      const zoomKe = d.zoom;              // FOV terdalam (mis. 40)
+      const zoomKe = d.zoom;              // FOV terdalam / saat tiba (mis. 45)
       const fovAwal = this.fovAwal;
       let t0 = null;
 
       const fadeIn  = p => 1 - Math.pow(1 - p, 2);            // 0 -> 1, easeOutQuad
       const fadeOut = p => 1 - Math.min(Math.max(p, 0), 1);   // 1 -> 0
+      const easeOut = t => 1 - Math.pow(1 - t, 3);            // meluncur mendarat
 
       const langkah = (ts) => {
         if (t0 === null) t0 = ts;
@@ -429,17 +433,17 @@
         belakang.setAttribute('opacity', fadeIn(p));
         depan.setAttribute('opacity',   fadeOut(p));
 
-        // ZOOM: kurva 0->1->0 (naik lalu turun), selesai mulus di p=1
+        // ZOOM SEARAH: 80 -> zoomKe, meluncur mendarat (easeOut). Tanpa balik.
         if (this.camera) {
-          const z = Math.sin(p * Math.PI);                   // 0 -> 1 -> 0
-          this.camera.setAttribute('fov', fovAwal - (fovAwal - zoomKe) * z);
+          this.camera.setAttribute('fov', fovAwal - (fovAwal - zoomKe) * easeOut(p));
         }
 
         if (p < 1) { requestAnimationFrame(langkah); return; }
 
-        // --- SELESAI: kunci nilai akhir, kembalikan FOV, tukar peran lapisan. ---
+        // --- SELESAI: kunci nilai akhir, tukar peran lapisan. ---
         belakang.setAttribute('opacity', 1);
         depan.setAttribute('opacity', 0);
+        // kembalikan FOV ke normal SEKARANG (instan, tak terlihat karena sudah tiba)
         if (this.camera) this.camera.setAttribute('fov', fovAwal);
 
         this.depan = belakang;
