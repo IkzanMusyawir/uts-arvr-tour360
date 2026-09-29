@@ -453,12 +453,6 @@
   const wadah3d = document.querySelector('#wadah3d');
   const label   = document.querySelector('#label');
   const loading = document.querySelector('#loading');
-  // canvas A-Frame untuk CSS blur saat transisi (dibuat A-Frame belakangan)
-  let cameraEl = null;
-  function ambilCanvas() {
-    if (!cameraEl) cameraEl = document.querySelector('a-scene canvas');
-    return cameraEl;
-  }
   let aktif = 0;
   let skyDepan = skyA, skyBelakang = skyB;   // skyDepan = yang sedang tampil
 
@@ -538,27 +532,21 @@
     const img = document.getElementById('pano' + baru);
 
     /* =====================================================================
-       FLY-THROUGH REALISTIS (ala Google Street View)
-       Dua fase:
-         FASE 1 (0 -> 0.5): "menembus" ruang lama
-             - lensa zoom-in tajam (FOV 80 -> 18)
-             - kamera maju (dolly) + sedikit naik -> rasa bergerak
-             - panorama tujuan muncul pelan (fade-in)
-             - layar sedikit blur di puncak -> rasa melintas jarak
-         FASE 2 (0.5 -> 1): "mendarat" di ruang baru
-             - lensa zoom-out kembali (18 -> 80)
-             - kamera kembali ke titik netral
-             - panorama lama fade habis
+       TRANSISI STANDAR GOOGLE STREET VIEW
+       Cara Google: TIDAK memakai zoom lensa. Ia memindahkan kamera:
+         1) kamera maju (dolly) ke arah lokasi berikutnya -> rasa melangkah
+         2) crossfade cepat di tengah gerak -> panorama bertukar
+         3) kamera mengendap ke titik netral -> "mendarat" di ruang baru
+       FOV tetap (tanpa zoom), tanpa blur. Singkat & bersih.
        ===================================================================== */
-    const DUR        = 900;                   // total durasi (ms)
-    const FOV_AWAL   = camera.getAttribute('fov') || 80;
-    const FOV_PUNCAK = 18;                    // zoom terdalam
+    const DUR     = 450;                      // durasi (ms) - gesit
+    const MAJU    = 1.4;                      // jarak kamera maju saat melangkah (m)
+    const NAIK    = 0.04;                     // busur naik halus (rasa melangkah)
 
-    // easing: easeInOutQuart - masuk pelan, melesat, mengendap halus
-    const ease = t => t < 0.5 ? 8*t*t*t*t : 1 - Math.pow(-2*t + 2, 4) / 2;
+    // easing easeInOutSine - paling halus & "natural" (dipakai Google untuk gerak)
+    const ease = t => -(Math.cos(Math.PI * t) - 1) / 2;
 
     const mulaiTransisi = () => {
-      // panorama tujuan disiapkan di lapis belakang
       skyBelakang.setAttribute('src', '#pano' + baru);
 
       label.classList.add('pindah');
@@ -568,45 +556,33 @@
       let t0 = null;
       function langkah(ts) {
         if (t0 === null) t0 = ts;
-        const p = Math.min((ts - t0) / DUR, 1);        // 0..1
+        const p = Math.min((ts - t0) / DUR, 1);   // 0..1
+        const e = ease(p);
 
-        // --- FASE gerak: gunakan segitiga 0->1->0 untuk "menembus lalu mendarat" ---
-        // f naik di paruh pertama (zoom masuk), turun di paruh kedua (zoom keluar)
-        const f = p < 0.5 ? ease(p * 2) : ease((1 - p) * 2);
-
-        // --- ZOOM lensa ---
-        camera.setAttribute('fov', FOV_AWAL - (FOV_AWAL - FOV_PUNCAK) * f);
-
-        // --- DOLLY kamera + busur naik halus (rasa melangkah) ---
+        // --- LANGKAH MAJU: kamera bergerak ke depan, lalu mendarat. ---
+        // Gerak maju mengikuti ease, naik-turun kecil di tengah.
         rig.setAttribute('position', {
           x: 0,
-          y: 1.6 + Math.sin(p * Math.PI) * 0.06,   // napas naik-turun kecil
-          z: -2.2 * f                               // maju saat menembus, kembali saat mendarat
+          y: 1.6 + Math.sin(p * Math.PI) * NAIK,
+          z: -MAJU * e
         });
 
-        // --- CROSSFADE bertahap: tujuan muncul di paruh pertama ---
-        // (dihitung dari f supaya sinkron dengan gerak)
-        const fade = Math.min(f * 1.15, 1);
+        // --- CROSSFADE: panorama tujuan menggantikan yang lama di paruh pertama. ---
+        // Google memakai fade cepat (~60% durasi) yang selesai saat kamera mendarat.
+        const fade = Math.min(p / 0.6, 1);
         skyBelakang.setAttribute('opacity', fade);
         skyDepan.setAttribute('opacity',   1 - fade);
 
-        // --- BLUR sesaat di puncak gerak -> rasa melintas (bukan sekadar dissolve) ---
-        const blur = f * 7;                        // max 7px di puncak
-        const cv = ambilCanvas();
-        if (cv) cv.style.filter = blur > 0.4 ? `blur(${blur.toFixed(2)}px)` : '';
-
         if (p < 1) { requestAnimationFrame(langkah); return; }
 
-        // --- selesai: mendarat, kembalikan FOV & posisi, tukar peran depan/belakang ---
+        // --- selesai: mendarat, kamera netral, tukar peran depan/belakang ---
         label.classList.remove('pindah');
-        if (cv) cv.style.filter = '';
 
         const tmp = skyDepan; skyDepan = skyBelakang; skyBelakang = tmp;
         skyDepan.setAttribute('opacity', 1);
         skyBelakang.setAttribute('opacity', 0);
         skyBelakang.setAttribute('src', '');   // lepas tekstur lama (hemat memori)
 
-        camera.setAttribute('fov', FOV_AWAL);  // reset lensa (instan, tidak terlihat)
         rig.setAttribute('position', '0 1.6 0');
         aktif = baru;
         dikunjungi.add(baru);                  // tandai sudah dikunjungi (warna map)
