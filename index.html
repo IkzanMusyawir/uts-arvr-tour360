@@ -366,8 +366,100 @@
   <!-- Notifikasi batas tur (akhir / awal) -->
   <div id="notif" role="status" aria-live="polite"></div>
 
+  <!-- ============ KOMPONEN TRANSISI STREET VIEW (kustom) ============ -->
+  <script>
+  /* =====================================================================
+     AFRAME.registerComponent('streetview-transition')
+     Efek perpindahan ala Google Street View:
+       1) DOLLY IN  : kamera maju mulus ke depan (default 380ms)
+       2) CROSSFADE : panorama lama fade-out & panorama baru fade-in simultan
+       3) RESET     : kamera kembali ke (0, 1.6, 0) setelah selesai
+     Dipasang di <a-scene>. Error-safe: kalau sky tidak ditemukan, dilewati.
+     ===================================================================== */
+  AFRAME.registerComponent('streetview-transition', {
+    schema: {
+      dur:   { default: 380 },   // durasi tween (ms)
+      dolly: { default: 1.1 },   // jarak kamera maju (m)
+      ease:  { default: 'easeInOutSine' }
+    },
+
+    init: function () {
+      this.rig  = document.querySelector('#rig');
+      this.skyA = document.querySelector('#skyA');
+      this.skyB = document.querySelector('#skyB');
+      this.depan = this.skyA;              // lapisan yang sedang tampil
+      this.belakang = this.skyB;
+      this.sibuk = false;
+    },
+
+    /* Pindahkan ke panorama index `idx` dengan efek Street View.
+       onSelesai = callback opsional (dipanggil setelah animasi tuntas). */
+    ke: function (idx, onSelesai) {
+      if (this.sibuk || !this.rig || !this.skyA) return false;
+      this.sibuk = true;
+
+      const d = this.data;
+      const rig = this.rig;
+      const depan = this.depan;
+      const belakang = this.belakang;
+
+      // panorama tujuan siap di lapisan belakang (transparan, opacity 0)
+      belakang.setAttribute('src', '#pano' + idx);
+      belakang.setAttribute('opacity', 0);
+
+      // --- 1) DOLLY IN: kamera maju ke depan + crossfade sekaligus ---
+      rig.setAttribute('animation__dolly', {
+        property: 'position',
+        from: '0 1.6 0',
+        to: '0 1.6 ' + (-d.dolly),
+        dur: d.dur,
+        easing: d.ease
+      });
+
+      // --- 2) CROSSFADE: belakang muncul (0->1), depan pudar (1->0) ---
+      belakang.setAttribute('animation__fadein', {
+        property: 'components.material.material.opacity',
+        from: 0, to: 1, dur: d.dur, easing: d.ease
+      });
+      depan.setAttribute('animation__fadeout', {
+        property: 'components.material.material.opacity',
+        from: 1, to: 0, dur: d.dur, easing: d.ease
+      });
+
+      // --- 3) SELESAI: tukar peran lapisan + reset kamera + bersihkan ---
+      const selesai = () => {
+        belakang.removeEventListener('animationcomplete__fadein', selesai);
+
+        // nilai akhir dikunci manual (jangan andalkan animasi)
+        depan.setAttribute('opacity', 0);
+        depan.removeAttribute('animation__fadeout');
+        depan.setAttribute('src', '');            // lepas tekstur lama
+        belakang.setAttribute('opacity', 1);
+        belakang.removeAttribute('animation__fadein');
+
+        // tukar peran
+        this.depan = belakang;
+        this.belakang = depan;
+
+        // reset posisi kamera (instan, tidak terlihat karena frame sudah identik)
+        rig.removeAttribute('animation__dolly');
+        rig.setAttribute('position', '0 1.6 0');
+
+        this.sibuk = false;
+        if (typeof onSelesai === 'function') onSelesai();
+      };
+      belakang.addEventListener('animationcomplete__fadein', selesai);
+      return true;
+    },
+
+    /* true kalau sedang ada transisi berjalan */
+    sedangSibuk: function () { return this.sibuk; }
+  });
+  </script>
+
   <!-- ============ PANGGUNG A-FRAME ============ -->
-  <a-scene renderer="antialias: true; colorManagement: true"
+  <a-scene streetview-transition
+           renderer="antialias: true; colorManagement: true"
            vr-mode-ui="enabled: false"
            loading-screen="enabled: false">
 
@@ -453,7 +545,6 @@
   const label   = document.querySelector('#label');
   const loading = document.querySelector('#loading');
   let aktif = 0;
-  let skyDepan = skyA, skyBelakang = skyB;   // skyDepan = yang sedang tampil
 
   // ---- Siapkan <img> di <a-assets> untuk tiap titik ----
   // VERSI_FOTO: naikkan angka ini tiap kali foto diganti, supaya browser
@@ -510,11 +601,14 @@
     notifTimer = setTimeout(() => notifEl.classList.remove('tampil'), ms);
   }
 
-  // ---- Ganti titik dengan transisi halus (crossfade) ----
-  let sedangPindah = false;
+  // ---- Ganti titik ----
+  // Logika transisi (dolly + crossfade + reset) ada di komponen
+  // "streetview-transition". Di sini cuma atur state aplikasi.
+  const transisi = () => document.querySelector('a-scene').components['streetview-transition'];
 
   function keTitik(i) {
-    if (sedangPindah) return;                 // hindari tumpang tindih transisi
+    const komp = transisi();
+    if (komp.sedangSibuk()) return;           // hindari tumpang tindih transisi
     if (i > TITIK.length - 1) {               // sudah di titik terakhir -> jangan putar balik
       notif('<b>Akhir Tur</b>Ini titik terakhir (Titik 15).<br>Tekan <b>Sebelumnya</b> untuk kembali, atau klik titik di mini map.');
       return;
@@ -526,50 +620,20 @@
 
     const baru = i;
     if (baru === aktif) { gambarMap(); return; }
-    sedangPindah = true;
-
-    /* =====================================================================
-       CROSSFADE 2-LAPIS (cara Google): lapisan panorama baru di belakang
-       sudah punya gambar tujuan, lapisan depan yang tampil dipudarkan
-       opacity 1 -> 0. Hasilnya panorama baru "muncul" mulus. Tidak ada
-       zoom/dolly/blur. Pakai RAF tunggal supaya deterministik.
-       ===================================================================== */
-    const DUR = 400;                          // durasi crossfade (ms)
-    const ease = t => t * t * (3 - 2 * t);    // smoothstep
-
-    // siapkan panorama tujuan di lapisan belakang
-    skyBelakang.setAttribute('src', '#pano' + baru);
 
     label.classList.add('pindah');
     label.innerHTML = TITIK[baru].label + ' / ' + TITIK.length
       + '<small>' + TITIK[baru].lantai + '</small>';
 
-    let t0 = null;
-    function langkah(ts) {
-      if (t0 === null) t0 = ts;
-      const p = Math.min((ts - t0) / DUR, 1);
-      const e = ease(p);
-
-      skyBelakang.setAttribute('opacity', e);      // makin muncul
-      skyDepan.setAttribute('opacity', 1 - e);     // makin pudar
-
-      if (p < 1) { requestAnimationFrame(langkah); return; }
-
-      // selesai: tukar peran depan/belakang, bersihkan lapisan lama
-      const tmp = skyDepan; skyDepan = skyBelakang; skyBelakang = tmp;
-      skyDepan.setAttribute('opacity', 1);
-      skyBelakang.setAttribute('opacity', 0);
-      skyBelakang.setAttribute('src', '');         // lepas tekstur lama
-
+    // jalan! transisi dolly + crossfade dikerjakan komponen
+    komp.ke(baru, () => {
       label.classList.remove('pindah');
       aktif = baru;
       dikunjungi.add(baru);
       tampilkanObjekUntuk(aktif);
       gambarMap();
       perbaruiTombol();
-      sedangPindah = false;
-    }
-    requestAnimationFrame(langkah);
+    });
   }
 
   // ---- Mini map ----
@@ -672,8 +736,8 @@
   const mulai = () => {
     bangunObjek3D();
     // kondisi awal: panorama pertama langsung tampil (tanpa fade)
-    skyDepan.setAttribute('src', '#pano0');
-    skyDepan.setAttribute('opacity', 1);
+    skyA.setAttribute('src', '#pano0');
+    skyA.setAttribute('opacity', 1);
     label.innerHTML = TITIK[0].label + ' / ' + TITIK.length
       + '<small>' + TITIK[0].lantai + '</small>';
     tampilkanObjekUntuk(0);
