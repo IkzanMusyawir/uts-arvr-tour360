@@ -373,10 +373,8 @@
 
     <a-assets id="assets"></a-assets>
 
-    <!-- Dua lapis sky untuk crossfade antar panorama.
-         Hanya satu yang terlihat penuh pada satu waktu. -->
-    <a-sky id="skyA" src="#pano0" material="shader: flat" radius="500"></a-sky>
-    <a-sky id="skyB" material="shader: flat" radius="500"></a-sky>
+    <!-- Satu lapis sky; transisi = animasi opacity (crossfade) -->
+    <a-sky id="sky" src="#pano0" material="shader: flat; opacity: 1" radius="500"></a-sky>
 
     <!-- Wadah objek 3D (diisi otomatis dari daftar OBJEK3D di bawah) -->
     <a-entity id="wadah3d"></a-entity>
@@ -445,8 +443,7 @@
   ];
 
   /* ===================================================================== */
-  const skyA    = document.querySelector('#skyA');
-  const skyB    = document.querySelector('#skyB');
+  const sky     = document.querySelector('#sky');
   const rig     = document.querySelector('#rig');
   const camera  = document.querySelector('#camera');
   const assets  = document.querySelector('#assets');
@@ -454,7 +451,6 @@
   const label   = document.querySelector('#label');
   const loading = document.querySelector('#loading');
   let aktif = 0;
-  let skyDepan = skyA, skyBelakang = skyB;   // skyDepan = yang sedang tampil
 
   // ---- Siapkan <img> di <a-assets> untuk tiap titik ----
   // VERSI_FOTO: naikkan angka ini tiap kali foto diganti, supaya browser
@@ -529,79 +525,40 @@
     if (baru === aktif) { gambarMap(); return; }
     sedangPindah = true;
 
-    const img = document.getElementById('pano' + baru);
-
     /* =====================================================================
-       TRANSISI STANDAR GOOGLE STREET VIEW
-       Cara Google: TIDAK memakai zoom lensa. Ia memindahkan kamera:
-         1) kamera maju (dolly) ke arah lokasi berikutnya -> rasa melangkah
-         2) crossfade cepat di tengah gerak -> panorama bertukar
-         3) kamera mengendap ke titik netral -> "mendarat" di ruang baru
-       FOV tetap (tanpa zoom), tanpa blur. Singkat & bersih.
+       CROSSFADE (1 sky) ala Google: opacity -> 0, ganti src, opacity -> 1.
+       Pakai komponen "animation" bawaan A-Frame + event "animationcomplete"
+       (bukan setTimeout) supaya tidak bentrok / race di frame rate rendah.
        ===================================================================== */
-    const DUR     = 450;                      // durasi (ms) - gesit
-    const MAJU    = 1.4;                      // jarak kamera maju saat melangkah (m)
-    const NAIK    = 0.04;                     // busur naik halus (rasa melangkah)
+    const DUR = 350;                          // durasi tiap fase fade (ms)
+    const fade = to => sky.setAttribute('animation__fade',
+      `property: components.material.material.opacity; to: ${to}; dur: ${DUR}; easing: easeInOutSine`);
 
-    // easing easeInOutSine - paling halus & "natural" (dipakai Google untuk gerak)
-    const ease = t => -(Math.cos(Math.PI * t) - 1) / 2;
+    label.classList.add('pindah');
+    label.innerHTML = TITIK[baru].label + ' / ' + TITIK.length
+      + '<small>' + TITIK[baru].lantai + '</small>';
 
-    const mulaiTransisi = () => {
-      skyBelakang.setAttribute('src', '#pano' + baru);
-
-      label.classList.add('pindah');
-      label.innerHTML = TITIK[baru].label + ' / ' + TITIK.length
-        + '<small>' + TITIK[baru].lantai + '</small>';
-
-      let t0 = null;
-      function langkah(ts) {
-        if (t0 === null) t0 = ts;
-        const p = Math.min((ts - t0) / DUR, 1);   // 0..1
-        const e = ease(p);
-
-        // --- LANGKAH MAJU: kamera bergerak ke depan, lalu mendarat. ---
-        // Gerak maju mengikuti ease, naik-turun kecil di tengah.
-        rig.setAttribute('position', {
-          x: 0,
-          y: 1.6 + Math.sin(p * Math.PI) * NAIK,
-          z: -MAJU * e
-        });
-
-        // --- CROSSFADE: panorama tujuan menggantikan yang lama di paruh pertama. ---
-        // Google memakai fade cepat (~60% durasi) yang selesai saat kamera mendarat.
-        const fade = Math.min(p / 0.6, 1);
-        skyBelakang.setAttribute('opacity', fade);
-        skyDepan.setAttribute('opacity',   1 - fade);
-
-        if (p < 1) { requestAnimationFrame(langkah); return; }
-
-        // --- selesai: mendarat, kamera netral, tukar peran depan/belakang ---
+    // 1) pudarkan -> 2) ganti gambar + munculkan -> 3) rapikan state
+    const saatPudar = (e) => {
+      if (e.detail.name !== 'animation__fade') return;
+      sky.removeEventListener('animationcomplete', saatPudar);
+      sky.setAttribute('src', '#pano' + baru);   // ganti gambar saat layar sudah hitam
+      fade(1);
+      const saatMuncul = (e2) => {
+        if (e2.detail.name !== 'animation__fade') return;
+        sky.removeEventListener('animationcomplete', saatMuncul);
         label.classList.remove('pindah');
-
-        const tmp = skyDepan; skyDepan = skyBelakang; skyBelakang = tmp;
-        skyDepan.setAttribute('opacity', 1);
-        skyBelakang.setAttribute('opacity', 0);
-        skyBelakang.setAttribute('src', '');   // lepas tekstur lama (hemat memori)
-
-        rig.setAttribute('position', '0 1.6 0');
         aktif = baru;
-        dikunjungi.add(baru);                  // tandai sudah dikunjungi (warna map)
+        dikunjungi.add(baru);
         tampilkanObjekUntuk(aktif);
         gambarMap();
         perbaruiTombol();
         sedangPindah = false;
-      }
-      requestAnimationFrame(langkah);
+      };
+      sky.addEventListener('animationcomplete', saatMuncul);
     };
-
-    if (img.complete) mulaiTransisi();
-    else {
-      loading.style.display = 'flex';
-      img.addEventListener('load', () => {
-        loading.style.display = 'none';
-        mulaiTransisi();
-      }, { once: true });
-    }
+    sky.addEventListener('animationcomplete', saatPudar);
+    fade(0);
   }
 
   // ---- Mini map ----
@@ -703,10 +660,9 @@
   const pertama = document.getElementById('pano0');
   const mulai = () => {
     bangunObjek3D();
-    // kondisi awal: panorama pertama langsung tampil tanpa fade
-    skyDepan.setAttribute('src', '#pano0');
-    skyDepan.setAttribute('opacity', 1);
-    skyBelakang.setAttribute('opacity', 0);
+    // kondisi awal: panorama pertama langsung tampil (tanpa fade)
+    sky.setAttribute('material', 'shader: flat; opacity: 1');
+    sky.setAttribute('src', '#pano0');
     label.innerHTML = TITIK[0].label + ' / ' + TITIK.length
       + '<small>' + TITIK[0].lantai + '</small>';
     tampilkanObjekUntuk(0);
