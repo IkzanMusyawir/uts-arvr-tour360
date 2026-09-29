@@ -139,7 +139,16 @@
     <label>Ukuran: <span id="vS">0.07</span>
       <input type="range" id="sS" min="0.01" max="0.3" step="0.005" value="0.07">
     </label>
-    <div class="kode">pos: [<span id="oX">0.2</span>, <span id="oY">0.58</span>, <span id="oZ">-3.2</span>], scale: <span id="oS">0.07</span></div>
+    <label>Putar X (miring depan-belakang): <span id="vRX">0</span>
+      <input type="range" id="sRX" min="-180" max="180" step="1" value="0">
+    </label>
+    <label>Putar Y (hadap kiri-kanan): <span id="vRY">0</span>
+      <input type="range" id="sRY" min="-180" max="180" step="1" value="0">
+    </label>
+    <label>Putar Z (miring samping): <span id="vRZ">0</span>
+      <input type="range" id="sRZ" min="-180" max="180" step="1" value="0">
+    </label>
+    <div class="kode">pos: [<span id="oX">0.2</span>, <span id="oY">0.58</span>, <span id="oZ">-3.2</span>], rot: [<span id="oRX">0</span>, <span id="oRY">0</span>, <span id="oRZ">0</span>], scale: <span id="oS">0.07</span></div>
     <button id="salin">Salin angka</button>
   </div>
 
@@ -446,11 +455,17 @@
      ===================================================================== */
   (function () {
     const sX = document.getElementById('sX'), sY = document.getElementById('sY'),
-          sZ = document.getElementById('sZ'), sS = document.getElementById('sS');
+          sZ = document.getElementById('sZ'), sS = document.getElementById('sS'),
+          sRX = document.getElementById('sRX'), sRY = document.getElementById('sRY'),
+          sRZ = document.getElementById('sRZ');
     const oX = document.getElementById('oX'), oY = document.getElementById('oY'),
-          oZ = document.getElementById('oZ'), oS = document.getElementById('oS');
+          oZ = document.getElementById('oZ'), oS = document.getElementById('oS'),
+          oRX = document.getElementById('oRX'), oRY = document.getElementById('oRY'),
+          oRZ = document.getElementById('oRZ');
     const vX = document.getElementById('vX'), vY = document.getElementById('vY'),
-          vZ = document.getElementById('vZ'), vS = document.getElementById('vS');
+          vZ = document.getElementById('vZ'), vS = document.getElementById('vS'),
+          vRX = document.getElementById('vRX'), vRY = document.getElementById('vRY'),
+          vRZ = document.getElementById('vRZ');
 
     // terapkan ke objek 3D yang sedang tampil (slot dengan model)
     function terapkan() {
@@ -459,29 +474,34 @@
       const el = document.getElementById('obj' + idx);
       if (!el) return;
       const x = +sX.value, y = +sY.value, z = +sZ.value, s = +sS.value;
+      const rx = +sRX.value, ry = +sRY.value, rz = +sRZ.value;
       el.setAttribute('position', { x, y, z });
+      el.setAttribute('rotation', { x: rx, y: ry, z: rz });
       el.setAttribute('scale', s + ' ' + s + ' ' + s);
       // tampilkan angka
       vX.textContent = x.toFixed(2); vY.textContent = y.toFixed(2);
       vZ.textContent = z.toFixed(2); vS.textContent = s.toFixed(3);
+      vRX.textContent = rx; vRY.textContent = ry; vRZ.textContent = rz;
       oX.textContent = x.toFixed(2); oY.textContent = y.toFixed(2);
       oZ.textContent = z.toFixed(2); oS.textContent = s.toFixed(3);
+      oRX.textContent = rx; oRY.textContent = ry; oRZ.textContent = rz;
     }
-    [sX, sY, sZ, sS].forEach(sl => sl.addEventListener('input', terapkan));
+    [sX, sY, sZ, sS, sRX, sRY, sRZ].forEach(sl => sl.addEventListener('input', terapkan));
 
     document.getElementById('salin').addEventListener('click', () => {
-      const teks = `pos: [${sX.value}, ${sY.value}, ${sZ.value}], scale: ${sS.value}`;
+      const teks = `pos: [${sX.value}, ${sY.value}, ${sZ.value}], rot: [${sRX.value}, ${sRY.value}, ${sRZ.value}], scale: ${sS.value}`;
       navigator.clipboard && navigator.clipboard.writeText(teks);
       const btn = document.getElementById('salin');
       btn.textContent = 'Tersalin!';
       setTimeout(() => btn.textContent = 'Salin angka', 1200);
     });
 
-    // sinkronkan slider dengan posisi awal OBJEK3D
+    // sinkronkan slider dengan posisi/rotasi awal OBJEK3D
     const awal = OBJEK3D.find(o => o.model);
     if (awal) {
       sX.value = awal.pos[0]; sY.value = awal.pos[1]; sZ.value = awal.pos[2];
       sS.value = awal.scale;
+      sRX.value = awal.rot[0]; sRY.value = awal.rot[1]; sRZ.value = awal.rot[2];
       terapkan();
     }
   })();
