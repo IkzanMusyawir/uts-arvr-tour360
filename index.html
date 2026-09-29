@@ -403,52 +403,49 @@
       const depan = this.depan;
       const belakang = this.belakang;
 
-      // panorama tujuan siap di lapisan belakang (transparan, opacity 0)
+      // panorama tujuan siap di lapisan belakang (opacity 0)
       belakang.setAttribute('src', '#pano' + idx);
       belakang.setAttribute('opacity', 0);
 
-      // --- 1) DOLLY IN: kamera maju ke depan + crossfade sekaligus ---
-      rig.setAttribute('animation__dolly', {
-        property: 'position',
-        from: '0 1.6 0',
-        to: '0 1.6 ' + (-d.dolly),
-        dur: d.dur,
-        easing: d.ease
-      });
+      /* -----------------------------------------------------------------
+         CROSS-DISSOLVE tanpa jeda gelap (cara Google):
+         fade-in depan SELESAI lebih dulu (0 -> 1 pada 0..60% durasi),
+         fade-out belakang BARU MULAI belakangan (1 -> 0 pada 40..100%).
+         Di tumpang-tindih (40..60%) jumlah opacity > 1 -> kecerahan stabil,
+         tidak ada momen gelap di tengah.
+         + DOLLY maju bersamaan.
+         ----------------------------------------------------------------- */
+      const dur = d.dur;
+      let t0 = null;
+      let raf = null;
 
-      // --- 2) CROSSFADE: belakang muncul (0->1), depan pudar (1->0) ---
-      belakang.setAttribute('animation__fadein', {
-        property: 'components.material.material.opacity',
-        from: 0, to: 1, dur: d.dur, easing: d.ease
-      });
-      depan.setAttribute('animation__fadeout', {
-        property: 'components.material.material.opacity',
-        from: 1, to: 0, dur: d.dur, easing: d.ease
-      });
+      // pembagi: fade-in selesai di 0.6, fade-out mulai di 0.4
+      const fadeIn  = p => Math.min(p / 0.6, 1);           // 0..1 selesai di p=0.6
+      const fadeOut = p => 1 - Math.min(Math.max((p - 0.4) / 0.6, 0), 1);  // 1..0 mulai di p=0.4
+      const easeIO  = t => -(Math.cos(Math.PI * t) - 1) / 2;
 
-      // --- 3) SELESAI: tukar peran lapisan + reset kamera + bersihkan ---
-      const selesai = () => {
-        belakang.removeEventListener('animationcomplete__fadein', selesai);
+      const langkah = (ts) => {
+        if (t0 === null) t0 = ts;
+        const p = Math.min((ts - t0) / dur, 1);
 
-        // nilai akhir dikunci manual (jangan andalkan animasi)
+        belakang.setAttribute('opacity', fadeIn(p));
+        depan.setAttribute('opacity',    fadeOut(p));
+        rig.setAttribute('position', { x: 0, y: 1.6, z: -d.dolly * easeIO(p) });
+
+        if (p < 1) { raf = requestAnimationFrame(langkah); return; }
+
+        // --- SELESAI: kunci nilai akhir, tukar peran lapisan, reset kamera ---
         depan.setAttribute('opacity', 0);
-        depan.removeAttribute('animation__fadeout');
-        depan.setAttribute('src', '');            // lepas tekstur lama
+        depan.setAttribute('src', '');        // lepas tekstur lama
         belakang.setAttribute('opacity', 1);
-        belakang.removeAttribute('animation__fadein');
-
-        // tukar peran
-        this.depan = belakang;
-        this.belakang = depan;
-
-        // reset posisi kamera (instan, tidak terlihat karena frame sudah identik)
-        rig.removeAttribute('animation__dolly');
         rig.setAttribute('position', '0 1.6 0');
 
+        this.depan = belakang;
+        this.belakang = depan;
         this.sibuk = false;
         if (typeof onSelesai === 'function') onSelesai();
       };
-      belakang.addEventListener('animationcomplete__fadein', selesai);
+      raf = requestAnimationFrame(langkah);
       return true;
     },
 
