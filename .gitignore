@@ -8,3 +8,6 @@ Desktop.ini
 # sementara
 *.log
 *.tmp
+
+# Model 3D besar (>100 MB) - tidak diupload ke GitHub, taruh manual di assets/
+assets/objek-samy.glb
