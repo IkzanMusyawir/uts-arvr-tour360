@@ -370,27 +370,29 @@
   <script>
   /* =====================================================================
      AFRAME.registerComponent('streetview-transition')
-     Crossfade lembut antar panorama:
-       - panorama BARU muncul perlahan (fade-in)
-       - panorama LAMA memudar keluar (fade-out)
-       - kedua gambar bertumpuk/menyatu di tengah, tanpa jedug
+     Transisi antar panorama:
+       - ZOOM     : lensa mengecil saat pindah (rasa menerobos masuk)
+       - CROSSFADE: panorama baru muncul, panorama lama memudar (menyatu)
      Dipasang di <a-scene>. Aman: kalau sky tidak ada, komponen lewat saja.
      ===================================================================== */
   AFRAME.registerComponent('streetview-transition', {
     schema: {
-      dur: { default: 420 }      // durasi crossfade (ms)
+      dur:  { default: 480 },    // durasi transisi (ms)
+      zoom: { default: 45 }      // FOV terdalam saat zoom (makin kecil = makin zoom)
     },
 
     init: function () {
-      // pastikan ada 2 sky + 1 rig di scene (kalau tidak, komponen lewati saja)
+      // pastikan ada 2 sky + 1 kamera di scene (kalau tidak, komponen lewati saja)
       this.skyA = document.querySelector('#skyA');
       this.skyB = document.querySelector('#skyB');
+      this.camera = document.querySelector('#camera');
+      this.fovAwal = this.camera ? (this.camera.getAttribute('fov') || 80) : 80;
       this.depan = this.skyA;              // lapisan yang sedang tampil
       this.belakang = this.skyB;
       this.sibuk = false;
     },
 
-    /* Pindahkan ke panorama index `idx` dengan crossfade lembut.
+    /* Pindahkan ke panorama index `idx` dengan zoom + crossfade.
        onSelesai = callback opsional (dipanggil setelah animasi tuntas). */
     ke: function (idx, onSelesai) {
       if (this.sibuk || !this.skyA) return false;
@@ -405,18 +407,20 @@
       belakang.setAttribute('opacity', 0);
 
       /* -----------------------------------------------------------------
-         CROSSFADE "MENYATU" (dua panorama bertumpuk, yang lama memudar):
-         - Panorama BARU muncul perlahan (0 -> 1) sepanjang durasi.
-         - Panorama LAMA baru mulai memudar di TENGAH, selesai di akhir.
-         Hasil: di separuh awal kedua gambar MENYATU (tumpang-tindih),
-         lalu gambar lama memudar keluar. Tanpa jedug.
+         ZOOM + CROSSFADE "MENYATU":
+         - ZOOM    : lensa mengecil tajam (FOV 80 -> zoomKe) = menerobos masuk,
+                     lalu kembali normal DI DALAM durasi (selesai sebelum akhir
+                     supaya tidak ada "jedug" saat transisi usai).
+         - CROSSFADE: panorama baru muncul (easeOut), panorama lama memudar.
+         Kurva zoom 0->1->0 (naik lalu turun) -> mulus, tanpa patahan.
          ----------------------------------------------------------------- */
-      const dur = d.dur;
+      const dur   = d.dur;
+      const zoomKe = d.zoom;              // FOV terdalam (mis. 40)
+      const fovAwal = this.fovAwal;
       let t0 = null;
 
-      // fade-in pakai easeOut (cepat muncul di awal), fade-out mulai di tengah
       const fadeIn  = p => 1 - Math.pow(1 - p, 2);            // 0 -> 1, easeOutQuad
-      const fadeOut = p => 1 - Math.min(Math.max(p, 0), 1);   // 1 -> 0, mulai langsung
+      const fadeOut = p => 1 - Math.min(Math.max(p, 0), 1);   // 1 -> 0
 
       const langkah = (ts) => {
         if (t0 === null) t0 = ts;
@@ -425,18 +429,24 @@
         belakang.setAttribute('opacity', fadeIn(p));
         depan.setAttribute('opacity',   fadeOut(p));
 
+        // ZOOM: kurva 0->1->0 (naik lalu turun), selesai mulus di p=1
+        if (this.camera) {
+          const z = Math.sin(p * Math.PI);                   // 0 -> 1 -> 0
+          this.camera.setAttribute('fov', fovAwal - (fovAwal - zoomKe) * z);
+        }
+
         if (p < 1) { requestAnimationFrame(langkah); return; }
 
-        // --- SELESAI: kunci nilai akhir, tukar peran lapisan. ---
+        // --- SELESAI: kunci nilai akhir, kembalikan FOV, tukar peran lapisan. ---
         belakang.setAttribute('opacity', 1);
         depan.setAttribute('opacity', 0);
+        if (this.camera) this.camera.setAttribute('fov', fovAwal);
 
         this.depan = belakang;
         this.belakang = depan;
         this.sibuk = false;
 
-        // buang tekstur lama SETELAH frame berikutnya (hindari hitch saat transisi),
-        // jadi tidak ada "jedug" di akhir.
+        // buang tekstur lama SETELAH frame berikutnya (hindari hitch saat transisi).
         const lama = depan;
         requestAnimationFrame(() => requestAnimationFrame(() => lama.setAttribute('src', '')));
 
