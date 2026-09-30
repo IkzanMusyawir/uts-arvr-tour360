@@ -293,6 +293,35 @@
     }
     #panelPandang button:hover { filter: brightness(1.1); }
 
+    /* ---------- Panel atur objek 3D (alat bantu sementara) ---------- */
+    #panelObjek {
+      position: absolute; top: 260px; right: 16px; z-index: 26; width: 252px;
+      padding: 12px 14px; border-radius: 14px; display: none;
+      background: var(--bg-panel); color: var(--text); font-size: 12px;
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      box-shadow: 0 10px 30px rgba(0,0,0,.45);
+      max-height: 60vh; overflow-y: auto;
+    }
+    #panelObjek .judul {
+      font-family: 'Cinzel', serif; font-weight: 600; font-size: 13px;
+      margin-bottom: 8px;
+    }
+    #panelObjek label { display: block; margin-bottom: 7px; color: var(--text-muted); }
+    #panelObjek input[type=range] { width: 100%; margin-top: 2px; }
+    #panelObjek .kode {
+      background: #0b0f18; padding: 7px 9px; border-radius: 6px; margin: 8px 0;
+      font-family: monospace; font-size: 10px; color: #9fe0a0;
+      word-break: break-all; line-height: 1.5;
+    }
+    #panelObjek button {
+      width: 100%; cursor: pointer; border: 0; border-radius: 20px;
+      padding: 8px 12px; background: var(--accent-strong); color: #fff;
+      font-size: 12px; font-weight: 600;
+    }
+    #panelObjek button:hover { filter: brightness(1.1); }
+
     /* ================= RESPONSIF ================= */
     @media (max-width: 560px) {
       #minimap { width: 176px; padding: 10px 11px 8px; top: 12px; left: 12px; }
@@ -404,6 +433,34 @@
     <div class="baris"><span>Pitch</span><b id="pPitch">0&deg;</b></div>
     <div class="kode">{ foto: "<span id="pFoto"></span>", label: "<span id="pLabel"></span>", lantai: "<span id="pLantai"></span>", pos: [<span id="pPos"></span>], rot: [<span id="pYawK"></span>, <span id="pPitchK"></span>] }</div>
     <button id="pSalin">Salin baris titik ini</button>
+  </div>
+
+  <!-- ============ PANEL ATUR OBJEK 3D (alat bantu sementara) ============ -->
+  <div id="panelObjek">
+    <div class="judul">Atur Objek 3D <span id="objJudul"></span></div>
+    <label>Kiri / Kanan (X): <span id="oX">0</span>
+      <input type="range" id="oXr" min="-30" max="30" step="0.05" value="0">
+    </label>
+    <label>Naik / Turun (Y): <span id="oY">1</span>
+      <input type="range" id="oYr" min="-30" max="20" step="0.05" value="1">
+    </label>
+    <label>Jarak (Z): <span id="oZ">-3</span>
+      <input type="range" id="oZr" min="-50" max="20" step="0.05" value="-3">
+    </label>
+    <label>Ukuran: <span id="oS">0.1</span>
+      <input type="range" id="oSr" min="0.005" max="2" step="0.005" value="0.1">
+    </label>
+    <label>Putar X: <span id="oRX">0</span>
+      <input type="range" id="oRXr" min="-180" max="180" step="1" value="0">
+    </label>
+    <label>Putar Y: <span id="oRY">0</span>
+      <input type="range" id="oRYr" min="-180" max="180" step="1" value="0">
+    </label>
+    <label>Putar Z: <span id="oRZ">0</span>
+      <input type="range" id="oRZr" min="-180" max="180" step="1" value="0">
+    </label>
+    <div class="kode">{ model: "<span id="oM"></span>", titik: <span id="oT"></span>, pos: [<span id="oXK"></span>, <span id="oYK"></span>, <span id="oZK"></span>], rot: [<span id="oRXK"></span>, <span id="oRYK"></span>, <span id="oRZK"></span>], scale: <span id="oSK"></span> }</div>
+    <button id="oSalin">Salin baris objek</button>
   </div>
 
   <!-- ============ KOMPONEN TRANSISI PANORAMA (kustom) ============ -->
@@ -544,22 +601,22 @@
      ===================================================================== */
   const TITIK = [
     // --- Lantai 5 (titik 1-4) ---
-    { foto: "foto/1.jpg",  label: "Titik 1",  lantai: "Lantai 5", pos: [ 42,  34], rot: [0, 0] },
-    { foto: "foto/2.jpg",  label: "Titik 2",  lantai: "Lantai 5", pos: [ 42,  62], rot: [0, 0] },
-    { foto: "foto/3.jpg",  label: "Titik 3",  lantai: "Lantai 5", pos: [ 42,  90], rot: [0, 0] },
-    { foto: "foto/4.jpg",  label: "Titik 4",  lantai: "Lantai 5", pos: [ 42, 118], rot: [0, 0] },
+    { foto: "foto/1.jpg",  label: "Titik 1",  lantai: "Lantai 5", pos: [ 42,  34], rot: [ -98,   0] },
+    { foto: "foto/2.jpg",  label: "Titik 2",  lantai: "Lantai 5", pos: [ 42,  62], rot: [ 102,   1] },
+    { foto: "foto/3.jpg",  label: "Titik 3",  lantai: "Lantai 5", pos: [ 42,  90], rot: [  92,  -3] },
+    { foto: "foto/4.jpg",  label: "Titik 4",  lantai: "Lantai 5", pos: [ 42, 118], rot: [  99, -28] },
     // --- Lantai 4 (titik 5-15) ---
-    { foto: "foto/5.jpg",  label: "Titik 5",  lantai: "Lantai 4", pos: [ 42, 118], rot: [0, 0] },
-    { foto: "foto/6.jpg",  label: "Titik 6",  lantai: "Lantai 4", pos: [ 68, 132], rot: [0, 0] },
-    { foto: "foto/7.jpg",  label: "Titik 7",  lantai: "Lantai 4", pos: [ 96, 132], rot: [0, 0] },
-    { foto: "foto/8.jpg",  label: "Titik 8",  lantai: "Lantai 4", pos: [124, 132], rot: [0, 0] },
-    { foto: "foto/9.jpg",  label: "Titik 9",  lantai: "Lantai 4", pos: [152, 132], rot: [0, 0] },
-    { foto: "foto/10.jpg", label: "Titik 10", lantai: "Lantai 4", pos: [172, 120], rot: [0, 0] },
-    { foto: "foto/11.jpg", label: "Titik 11", lantai: "Lantai 4", pos: [172,  96], rot: [0, 0] },
-    { foto: "foto/12.jpg", label: "Titik 12", lantai: "Lantai 4", pos: [172,  72], rot: [0, 0] },
-    { foto: "foto/13.jpg", label: "Titik 13", lantai: "Lantai 4", pos: [172,  48], rot: [0, 0] },
-    { foto: "foto/14.jpg", label: "Titik 14", lantai: "Lantai 4", pos: [150,  30], rot: [0, 0] },
-    { foto: "foto/15.jpg", label: "Titik 15", lantai: "Lantai 4", pos: [118,  30], rot: [0, 0] }
+    { foto: "foto/5.jpg",  label: "Titik 5",  lantai: "Lantai 4", pos: [ 42, 118], rot: [  92,  -1] },
+    { foto: "foto/6.jpg",  label: "Titik 6",  lantai: "Lantai 4", pos: [ 68, 132], rot: [ 170,   1] },
+    { foto: "foto/7.jpg",  label: "Titik 7",  lantai: "Lantai 4", pos: [ 96, 132], rot: [ 140,   1] },
+    { foto: "foto/8.jpg",  label: "Titik 8",  lantai: "Lantai 4", pos: [124, 132], rot: [ 187,   2] },
+    { foto: "foto/9.jpg",  label: "Titik 9",  lantai: "Lantai 4", pos: [152, 132], rot: [   6,   2] },
+    { foto: "foto/10.jpg", label: "Titik 10", lantai: "Lantai 4", pos: [172, 120], rot: [ 173,  -3] },
+    { foto: "foto/11.jpg", label: "Titik 11", lantai: "Lantai 4", pos: [172,  96], rot: [ -73,  -4] },
+    { foto: "foto/12.jpg", label: "Titik 12", lantai: "Lantai 4", pos: [172,  72], rot: [ -82,  -3] },
+    { foto: "foto/13.jpg", label: "Titik 13", lantai: "Lantai 4", pos: [172,  48], rot: [ -96,   2] },
+    { foto: "foto/14.jpg", label: "Titik 14", lantai: "Lantai 4", pos: [150,  30], rot: [-180,  -4] },
+    { foto: "foto/15.jpg", label: "Titik 15", lantai: "Lantai 4", pos: [118,  30], rot: [ 122,  -1] }
   ];
 
   /* =====================================================================
@@ -581,7 +638,7 @@
     { model: "assets/vendine_mechine.glb", titik: 4, pos: [0.60, -21.45, 20.00], rot: [-90, -5, 94], scale: 0.47 }, // muncul di Titik 5
     { model: "assets/objek-ainil.glb", titik:  5, pos: [-8.10, -4.05, 2.00], rot: [-95, -131, -24], scale: 0.085 }, // muncul di Titik 6 (Ainil)
     { model: "assets/objek-anggun.glb", titik: 12, pos: [16.30, -3.65, 20.00], rot: [-92, -51, 44], scale: 0.31 }, // muncul di Titik 13 (anggun)
-    { model: null, titik: 14, pos: [0, 1.0, -3.0], rot: [0, 0, 0],   scale: 1 }  // muncul di Titik 15
+    { model: "assets/objek-dimas.glb", titik: 6, pos: [0, 1.0, -3.0], rot: [0, 0, 0], scale: 0.1 }, // muncul di Titik 7 (Dimas)
   ];
 
   /* ===================================================================== */
@@ -661,6 +718,8 @@
       if (o.titik === titikIndexAktif) e.setAttribute('visible', true);
       else e.setAttribute('visible', false);
     });
+    // panel atur objek: muncul kalau titik ini punya objek 3D
+    if (typeof sinkronPanelObjek === 'function') sinkronPanelObjek(titikIndexAktif);
   }
 
   // ---- Notifikasi batas tur ----
@@ -873,6 +932,63 @@
       navigator.clipboard && navigator.clipboard.writeText(teks);
       const b = el('pSalin'); b.textContent = 'Tersalin!';
       setTimeout(() => b.textContent = 'Salin baris titik ini', 1200);
+    });
+  })();
+
+  /* =====================================================================
+     PANEL ATUR OBJEK 3D (alat bantu sementara)
+     Muncul di titik yang punya objek 3D. Geser slider -> salin baris objek
+     -> tempel ke array OBJEK3D di atas. Hapus panel ini kalau sudah final.
+     ===================================================================== */
+  (function () {
+    const el = id => document.getElementById(id);
+    const R = { x: el('oXr'), y: el('oYr'), z: el('oZr'), s: el('oSr'),
+                rx: el('oRXr'), ry: el('oRYr'), rz: el('oRZr') };
+    const V = { x: el('oX'), y: el('oY'), z: el('oZ'), s: el('oS'),
+                rx: el('oRX'), ry: el('oRY'), rz: el('oRZ') };
+    const K = { x: el('oXK'), y: el('oYK'), z: el('oZK'), s: el('oSK'),
+                rx: el('oRXK'), ry: el('oRYK'), rz: el('oRZK') };
+    const panel = el('panelObjek');
+    let slot = -1;
+
+    window.sinkronPanelObjek = function (titikAktif) {
+      slot = OBJEK3D.findIndex(o => o.model && o.titik === titikAktif);
+      if (slot < 0) { panel.style.display = 'none'; return; }
+      panel.style.display = 'block';
+      const o = OBJEK3D[slot];
+      R.x.value = o.pos[0]; R.y.value = o.pos[1]; R.z.value = o.pos[2]; R.s.value = o.scale;
+      R.rx.value = o.rot[0]; R.ry.value = o.rot[1]; R.rz.value = o.rot[2];
+      el('objJudul').textContent = '(' + o.model.split('/').pop() + ')';
+      terapkan();
+    };
+
+    function terapkan() {
+      if (slot < 0) return;
+      const o = OBJEK3D[slot];
+      const e = document.getElementById('obj' + slot);
+      if (!e) return;
+      const x = +R.x.value, y = +R.y.value, z = +R.z.value, s = +R.s.value;
+      const rx = +R.rx.value, ry = +R.ry.value, rz = +R.rz.value;
+      e.setAttribute('position', { x, y, z });
+      e.setAttribute('rotation', { x: rx, y: ry, z: rz });
+      e.setAttribute('scale', s + ' ' + s + ' ' + s);
+      V.x.textContent = x.toFixed(2); V.y.textContent = y.toFixed(2);
+      V.z.textContent = z.toFixed(2); V.s.textContent = s.toFixed(3);
+      V.rx.textContent = rx; V.ry.textContent = ry; V.rz.textContent = rz;
+      K.x.textContent = x.toFixed(2); K.y.textContent = y.toFixed(2);
+      K.z.textContent = z.toFixed(2); K.s.textContent = s.toFixed(3);
+      K.rx.textContent = rx; K.ry.textContent = ry; K.rz.textContent = rz;
+      el('oM').textContent = o.model; el('oT').textContent = o.titik;
+    }
+    Object.values(R).forEach(r => r.addEventListener('input', terapkan));
+
+    el('oSalin').addEventListener('click', () => {
+      if (slot < 0) return;
+      const o = OBJEK3D[slot];
+      const teks = `{ model: "${o.model}", titik: ${o.titik}, pos: [${R.x.value}, ${R.y.value}, ${R.z.value}], rot: [${R.rx.value}, ${R.ry.value}, ${R.rz.value}], scale: ${R.s.value} }`;
+      navigator.clipboard && navigator.clipboard.writeText(teks);
+      const b = el('oSalin'); b.textContent = 'Tersalin!';
+      setTimeout(() => b.textContent = 'Salin baris objek', 1200);
     });
   })();
 
