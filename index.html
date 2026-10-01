@@ -585,6 +585,9 @@
         - pos   : posisi di dalam ruangan [x, y, z]
         - rot   : rotasi [x, y, z]
         - scale : perbesaran
+        - unlit : true = objek tampil tanpa butuh cahaya (warna asli/vertex
+                  color langsung kelihatan). Untuk model gelap seperti Samy.
+        - brightness : pengali terang saat unlit (default 1.6)
 
         Cara pakai nanti:
           a. taruh file .glb ke folder  assets/
@@ -593,7 +596,7 @@
         Saat "model" masih null, tidak ada apa-apa yang ditampilkan.
      ===================================================================== */
   const OBJEK3D = [
-    { model: "assets/objek-samy.glb", titik: 0, pos: [-24.00, -13.20, -20.90], rot: [-93, 117, 119], scale: 0.905 }, // muncul di Titik 1 (Samy)
+    { model: "assets/objek-samy.glb", titik: 0, pos: [-24.00, -13.20, -20.90], rot: [-93, 117, 119], scale: 0.905, unlit: true }, // muncul di Titik 1 (Samy, unlit: warna tampil tanpa cahaya)
     { model: "assets/vendine_mechine.glb", titik: 4, pos: [0.60, -21.45, 20.00], rot: [-90, -5, 94], scale: 0.47 }, // muncul di Titik 5
     { model: "assets/objek-ainil.glb", titik:  5, pos: [-8.10, -4.05, 2.00], rot: [-95, -131, -24], scale: 0.085 }, // muncul di Titik 6 (Ainil)
     { model: "assets/objek-anggun.glb", titik: 12, pos: [16.30, -3.65, 20.00], rot: [-92, -51, 44], scale: 0.31 }, // muncul di Titik 13 (anggun)
@@ -653,6 +656,27 @@
       e.setAttribute('position', o.pos.join(' '));
       e.setAttribute('rotation', o.rot.join(' '));
       e.setAttribute('scale', o.scale + ' ' + o.scale + ' ' + o.scale);
+      if (o.unlit) {
+        // model tanpa tekstur (warna disimpan per-vertex / gelap) dibuat unlit:
+        // warna tampil penuh tanpa butuh cahaya + sedikit dinaikkan terang
+        e.addEventListener('model-loaded', () => {
+          const T = AFRAME.THREE;
+          e.object3D.traverse(m => {
+            if (!m.isMesh) return;
+            const adaVertexColor = !!(m.geometry && m.geometry.attributes.color);
+            const old = m.material;
+            const src = Array.isArray(old) ? old : [old];
+            const ganti = src.map(mt => new T.MeshBasicMaterial({
+              color: mt.color ? mt.color.clone().multiplyScalar(o.brightness || 1.6) : new T.Color(0xffffff),
+              map: mt.map || null,
+              vertexColors: mt.vertexColors || adaVertexColor,
+              transparent: mt.transparent,
+              opacity: mt.opacity
+            }));
+            m.material = Array.isArray(old) ? ganti : ganti[0];
+          });
+        });
+      }
       wadah3d.appendChild(e);
     });
     // tampilkan objek sesuai titik aktif
@@ -907,7 +931,10 @@
     el('oSalin').addEventListener('click', () => {
       if (slot < 0) return;
       const o = OBJEK3D[slot];
-      const teks = `{ model: "${o.model}", titik: ${o.titik}, pos: [${R.x.value}, ${R.y.value}, ${R.z.value}], rot: [${R.rx.value}, ${R.ry.value}, ${R.rz.value}], scale: ${R.s.value} }`;
+      let teks = `{ model: "${o.model}", titik: ${o.titik}, pos: [${R.x.value}, ${R.y.value}, ${R.z.value}], rot: [${R.rx.value}, ${R.ry.value}, ${R.rz.value}], scale: ${R.s.value}`;
+      if (o.unlit) teks += `, unlit: true`;
+      if (o.brightness) teks += `, brightness: ${o.brightness}`;
+      teks += ' }';
       navigator.clipboard && navigator.clipboard.writeText(teks);
       const b = el('oSalin'); b.textContent = 'Tersalin!';
       setTimeout(() => b.textContent = 'Salin baris objek', 1200);
